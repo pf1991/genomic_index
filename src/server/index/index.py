@@ -67,23 +67,25 @@ class Index():
 
         files = {}
         l = len(test_strings)
-        len_kmer_last = None
-        flag_found = None
+        # len_kmer_last = None
+        # flag_found = None
         for kmer in test_strings:
 
-            if(flag_found and len(kmer) < len_kmer_last):
-                break
+            # if(flag_found and len(kmer) < len_kmer_last):
+            #     break
             
-            len_kmer_last = len(kmer)
+            # len_kmer_last = len(kmer)
 
             #verify if bloom filters are working as expected
             hash = self.bloom_filters.element.check(kmer)
             if(not hash):
+                print('Not found:', kmer)
                 continue
 
             #get posting list
             posting_list = self.inverted_index.get_posting_list(hash, kmer)
             if(not posting_list):
+                print('Not found posting:', kmer)
                 continue
 
             #kmer found!
@@ -105,18 +107,18 @@ class Index():
                 files[f]['score'] = files[f]['score'] + score
                 files[f]['locations'].extend(posting_list[f])
 
-                #get strings from reference
-                count = 0
-                for pos in files[f]['locations']:
-                    files[f]['locations'][count] = pos + (self.reference.element[pos[0]:pos[1]], score)
-                    count = count + 1
+                # #get strings from reference
+                # count = 0
+                # for pos in files[f]['locations']:
+                #     files[f]['locations'][count] = pos + (self.reference.element[pos[0]:pos[1]], score)
+                #     count = count + 1
 
-            #prepare output and sort results
-            l = []
-            [l.append({'file':k,'value':v}) for k,v in files.items()]
-            l.sort(key=lambda x: x['value']['score'], reverse=True)
+        #prepare output and sort results
+        l = []
+        [l.append({'file':k,'value':v}) for k,v in files.items()]
+        l.sort(key=lambda x: x['value']['score'], reverse=True)
 
-            return l
+        return l
 
 
     def test_consistency(self):
