@@ -1,0 +1,7 @@
+files/**
+env
+src/client/db.sqlite3
+__pycache__
+*.vcf*
+*.pickle
+*.fa*

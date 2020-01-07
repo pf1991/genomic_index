@@ -1,0 +1,67 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Genomic Search</title>
+  <meta name="description" content="Geomic Search">
+  <meta name="author" content="SitePoint">
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css">
+
+</head>
+
+<body>
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+    <nav class="navbar navbar-light bg-light">
+            <span class="navbar-brand mb-0 h1">Genomic Search</span>
+            <form action="/" method="post" class="form-inline my-2 my-lg-0">
+                {% csrf_token %}
+                <div class="input-group md-form form-sm form-1 pl-0">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text" id="basic-text1"><i class="fas fa-search text-white"
+                             aria-hidden="true"></i></span>
+                    </div>
+                    <input class="form-control my-0 py-1" type="text" placeholder="Search" aria-label="Search" name="term">
+                  </div>
+            </form>
+    </nav>
+    
+    <div class="ml-md-5 mt-5">
+        {%if term %}
+        <h5 class="card-title">Searches for "{{ term }}"</h5>
+        {% else %}
+        <h5 class="card-title">Please search for some sequence (ex: ACTGCATGCTAG)"</h5>
+        {% endif %}
+    </div>
+
+    {%if term and result %}
+    <h4 class="ml-md-5 mt-1 card-title">Files Found: {{result |length}}</h5>
+    <div class="list-group mt-2">
+        {% if result %}
+            {% for res in result %}
+            <div class="list-group-item">
+                    <div class="">
+                        <span class="badge badge-primary"><i class="fas fa-bullseye text-white mr-1 "
+                                aria-hidden="true"></i>{{ res.value.score }}</span>
+                        <h5 class="mb-1 mr-2">[{{ res.file}}]</h5>        
+                    </div>
+                    <small class="text-muted">{{res.value.locations}}</small>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    {% elif not result and term %}
+        <h5 class="ml-md-5 mt-5 card-title">No Results</h5>
+    {% endif %}
+
+</body>
+</html>
+
+
+    
