@@ -1,16 +1,16 @@
 import os
 import sys
 from Bio import SeqIO
+import time
+import vcf
+from pyfaidx import FastaVariant
+from gzip import open as gzopen
 from .bloom import Bloom
 from .inverted import InvertedIndex
 from .repository import Repository
 from .base_element import BaseElement
 from .config import Config
-import time
-import vcf
-from pyfaidx import FastaVariant
-from gzip import open as gzopen
-from .settings import REF_FILE_PATH
+from .reference import Reference
 
 class Index():
 
@@ -28,7 +28,7 @@ class Index():
         self.bloom_filters_file = os.path.join(BASE_DIR, 'files/bloom_filter.pickle')
         self.files_repo_file = os.path.join(BASE_DIR, 'files/files.pickle')
         self.inverted_index_file = os.path.join(BASE_DIR, 'files/inverted.pickle')
-        self.reference_file_path = os.path.join(BASE_DIR, REF_FILE_PATH)
+        self.repository_path = os.path.join(BASE_DIR, 'files/repo')
 
         #init 
         self._init_elements()
@@ -43,6 +43,7 @@ class Index():
 
 
     def summary(self):
+
         #check if index is loaded and ok!     
         self._check_index_ready()
         
@@ -51,6 +52,8 @@ class Index():
         self.inverted_index.summary()
         self.repository.summary()
         self.bloom_filters.summary()
+        self.reference.summary()
+
 
 
     def search(self, record_str):
@@ -58,22 +61,22 @@ class Index():
         # check consistency
         self._check_index_ready()
 
-        start = time.time()
-
         #get unique k-mers from ref
         test_strings = self._generate_unique_kmers(record_str)
-
         print("Query K-mers:", test_strings)
 
+        #result buffer
         files = {}
+
+        #test each k-meer (substring of the dna sequence)
         l = len(test_strings)
         len_kmer_last = None
         flag_found = None
         for kmer in test_strings:
 
+            #if longer k-meers are found let's avoid the smaller ones
             if(flag_found and len(kmer) < len_kmer_last):
-                break
-            
+                break   
             len_kmer_last = len(kmer)
 
             #verify if bloom filters are working as expected
@@ -103,17 +106,24 @@ class Index():
                         'locations': []
                     }
                 
-                print(files[f])
-                
+                #calculate score
                 score = len(posting_list[f]) * (len(kmer) / max( self.config.element['WINDOW_SIZES']) )
                 files[f]['score'] = files[f]['score'] + score
                 files[f]['locations'].extend(posting_list[f])
 
-                #get strings from reference
-                count = 0
-                for pos in files[f]['locations']:
-                    files[f]['locations'][count].extend([self.reference.element[pos[0]:pos[1]]])
-                    count = count + 1
+                #get file reference
+                print(f)
+                print(self.repository.element)
+                ref_id = self.repository.element[f]['ref_id']
+
+
+                #get strings from reference and insert them on the result array for evaluation
+                if self.repository.element[f]['ref_id']:
+                    count = 0
+                    for pos in files[f]['locations']:
+                        # str index starts at 0 but on vcf files at 1
+                        files[f]['locations'][count].extend([self.reference.element[ref_id]['sequence'][pos[0]+1:pos[1]+1], kmer]) 
+                        count = count + 1
 
             
             break
@@ -151,72 +161,150 @@ class Index():
                 print("File not found failed", kmer, hash)
                 continue
 
-            # check values in posting list
-            for pos in posting_list['ref']:
-                ref_str = self._get_from_ref(pos[0], pos[1])
-                if(ref_str != kmer):
-                    print("Ref is not consistent", kmer, ref_str, pos[0], pos[1])
-                    continue
+            # # check values in posting list
+            # for pos in posting_list['ref']:
+            #     ref_str = self._get_from_ref(pos[0], pos[1])
+            #     if(ref_str != kmer):
+            #         print("Ref is not consistent", kmer, ref_str, pos[0], pos[1])
+            #         continue
 
 
-    def index_files(self):
+    def index_reference(self, file_id, file_path):
 
+        print('- Indexing reference:', file_id, file_path)
+
+        if(not file_path.endswith('.fa.gz')):
+            raise Exception('Format not supported! Please use a fa.gz file')
+
+        if not os.path.exists(file_path):
+            raise Exception('File does not exists!')
+
+        record_str = ""
+
+        # we start by saving the file, moving it to a new location
+        self.repository.add(file_id, 'reference file', file_path, '.fa.gz', file_id)
+
+        tem_seq_ids = self.config.element['SEQ_IDS'].copy()
+        for seq_record in SeqIO.parse(gzopen(file_path,'rt'), "fasta"):
+            print('Looking at seq id:', seq_record.id)
+            # references has 1 cromossome per record, so here we specify which chromossomes should be indexed
+            # if this configuration is empty everything will be indexed
+            # Used to make it easier to test the indexing on large genomes
+            # if(len(self.config.element['SEQ_IDS']) > 0 and len(tem_seq_ids) == 0):
+            #     break
+            # elif(len(self.config.element['SEQ_IDS']) > 0 and seq_record.id not in self.config.element['SEQ_IDS']):
+            #     print('Not in SEQ_IDS. Skiping...')
+            #     continue
+            # elif(len(self.config.element['SEQ_IDS']) > 0):
+            #     tem_seq_ids.pop(0)
+            
+            # convert record to a string
+            record_str = record_str + str(seq_record.seq)
+
+            # concatenate string
+            #self.reference.element = self.reference.element + record_str
+
+        # index
+        # index string from the beginning to a max pos defined on the configuration
+        if self.config.element['MAX_POS']:
+            self._index(record_str[1:self.config.element['MAX_POS']], file_id)
+        else:
+            self._index(record_str, file_id)
+
+        # add reference to the reference object
+        self.reference.add(file_id, record_str)
+
+        self._save()
+
+        print('-Reference indexed!')
+
+
+    def index_file(self, reference_id, vfc_file_path):
+
+        print('- Indexing file!')
         self._check_index_ready()
 
-        for filename in os.listdir(self.to_index):
-            if filename.endswith(".vcf.gz"): 
-                file_to_index = os.path.join(self.to_index, filename)
+        #get reference file path
+        reference_file_path = self.repository.get_path(reference_id)
+        if(not reference_file_path):
+            raise Exception('Reference file path not defined! Perhaps the reference doesnt exist yet and should be indexed first!')
 
-                samples = vcf.Reader(filename=file_to_index).samples[0: self.config.element['MAX_FILES_TO_INDEX']]
+        # check if files are defined!
+        # check file extension!
+        if(not vfc_file_path.endswith('.vcf.gz')):
+            raise Exception('Format not supported! Please use a vcf.gz file')
 
-                count = 0
-                last_time = None
-                elapsed = 0
-                for s in samples:
-                    if(last_time):
-                        elapsed = time.time() - last_time
-                    last_time = time.time()
-                    print('Samples: ', (count/len(samples)*100), '%', elapsed, 's')
-                    print('-Mapping VCF to reference...')
-                    consensus = FastaVariant(self.reference_file_path, file_to_index, sample=s, het=True, hom=True)
-                    self._index_sequence(consensus['1'][1:self.config.element['MAX_POS']], s)
-                    count = count + 1
-        
+        if not os.path.exists(vfc_file_path):
+            raise Exception('File does not exists!')
+
+
+        print('Using reference:', reference_id, reference_file_path)
+        # for filename in os.listdir(self.to_index):
+        #     if filename.endswith(".vcf.gz"): 
+        # file_to_index = os.path.join(self.to_index, filename)
+
+        # Getting samples on VFC file
+        samples = vcf.Reader(filename=vfc_file_path).samples
+        if self.config.element['MAX_SAMPLES_TO_INDEX']:
+            samples = samples[0: self.config.element['MAX_SAMPLES_TO_INDEX']]
+
+        # iterate over all sample, reconstruct the sequence and index it!
+        # this is a slow process
+        count = 0
+        last_time = None
+        elapsed = 0
+        for s in samples:
+            if(last_time):
+                elapsed = time.time() - last_time
+            last_time = time.time()
+            print('Samples: ', (count/len(samples)*100), '%', elapsed, 's')
+            print('- Reconstructing VCF original sequence...')
+            consensus = FastaVariant(reference_file_path, vfc_file_path, sample=s, het=True, hom=True)
+            self._index(consensus['1'][1:self.config.element['MAX_POS']], s, reference_id)
+            count = count + 1
+
         #save structures to ram and disk
         self._save()
                     
+        print('- File indexed!')
 
-    def generate(self, max_pos, seq_ids, max_files_to_index,
+    def set_up(self, max_pos, seq_ids, max_samples_to_index,
                     window_sizes, sept_unit, max_bloom_false_prob):
         
+        #reset all elements
         self._init_elements()
-        self.config.update(max_pos, seq_ids, max_files_to_index,
+
+        #clear up repository
+        self.repository.clear()
+
+        #update configuration values
+        self.config.update(max_pos, seq_ids, max_samples_to_index,
                     window_sizes, sept_unit, max_bloom_false_prob)
 
-        # generate index
-        print('- Generating index...')
+        # # generate index
+        # print('- Generating index...')
 
-        file_id = 'ref'
-        path = ''
+        # file_id = 'ref'
+        # path = ''
 
-        #load file list
-        self.reference.element = ""
-        key = self.repository.add(file_id, 'reference', path)
-        for seq_record in SeqIO.parse(gzopen(self.reference_file_path,'rt'), "fasta"):
+        # #load file list
+        # self.reference.element = ""
+        # key = self.repository.add(file_id, 'reference', path)
+        # for seq_record in SeqIO.parse(gzopen(self.reference_file_path,'rt'), "fasta"):
 
-            if(seq_record.id not in  self.config.element['SEQ_IDS']):
-                print('Not in SEQ_IDS. Skiping...')
-                continue
+        #     if(seq_record.id not in  self.config.element['SEQ_IDS']):
+        #         print('Not in SEQ_IDS. Skiping...')
+        #         continue
 
-            record_str = str(seq_record.seq)
+        #     record_str = str(seq_record.seq)
 
-            self.reference.element = self.reference.element + record_str
+        #     self.reference.element = self.reference.element + record_str
 
-            #index
-            self._index_sequence(record_str[1:self.config.element['MAX_POS']], file_id)
+        #     #index
+        #     self._index(record_str[1:self.config.element['MAX_POS']], file_id)
 
-            #only first chromossome
-            break
+        #     #only first chromossome
+        #     break
 
         #save structures to ram and disk
         self._save()
@@ -243,11 +331,11 @@ class Index():
         self.bloom_filters.init()
 
         # repository (files references)
-        self.repository = Repository(self.files_repo_file, 'repo')
+        self.repository = Repository(self.files_repo_file, 'repo', self.repository_path)
         # inverted index
         self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted')
         #reference string
-        self.reference = BaseElement(self.reference_file,'ref') # char
+        self.reference = Reference(self.reference_file,'ref') # char
 
 
     def _load(self):
@@ -266,9 +354,7 @@ class Index():
 
 
     def _save(self):
-
         start = time.time()
-
         print('- Saving index...')
         self.bloom_filters.save()
         self.repository.save()
@@ -278,10 +364,8 @@ class Index():
         self.config.save()
 
 
-    def _index_sequence(self, record_str, file_id):
-
-        print('-Indexing sequence...')
-
+    def _index(self, record_str, file_id, reference_id = None):
+        print('- Indexing sequence...')
         record_str = str(record_str)
 
         with open('_indexed_%s.txt' % file_id, 'w') as file:
@@ -291,8 +375,7 @@ class Index():
         l = len(record_str)
 
         print("[%s]" % file_id)
-
-        for i in range(1, l, self.config.element['STEPS_UNIT']):            
+        for i in range(0, l, self.config.element['STEPS_UNIT']):            
             if(i >  self.config.element['MAX_POS']):
                     break
             
@@ -303,26 +386,24 @@ class Index():
 
                 kmer = record_str[i:i+w]       
                 hash = self.bloom_filters.add(kmer)
-                print(hash, kmer, file_id, i, i + w)
-                self.inverted_index.add(hash, kmer, file_id, i, i + w)        
+                print(hash, kmer, file_id, i + 1, i + w + 1)    #in str index starts at 0, but on vcf files at 1
+                self.inverted_index.add(hash, kmer, file_id, i + 1, i + w + 1)        
 
             if(i % (self.config.element['MAX_POS']/50) == 0):
                 print("#", end='', flush=True)
+
         print()
+        # add vcf file to repository
+        self.repository.add(file_id, 'VCF file', None, None, reference_id)
 
-        self.repository.add(file_id, '', '')
 
-
-    def _get_from_ref(self, start, stop):
+    def _get_from_ref(self, id, start, stop):
         self._check_index_ready()
-
-        return self.reference.element[start:stop]
+        return self.reference.element[id]['sequence'][start:stop]
 
 
     def _generate_unique_kmers(self, record_str):
-
         self._check_index_ready()
-
         print('- Generating unique kmers from record...')
 
         l = len(record_str)
