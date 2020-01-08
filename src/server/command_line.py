@@ -42,7 +42,6 @@ parser.add_argument(
 
 parser.add_argument(
     '--test_search',
-    action='store_true',
     help='test search',
 )
  
@@ -61,8 +60,8 @@ index = Index()
 
 if args.generate:
     start = time.time()
-    index.generate(max_pos = 100000, seq_ids = ['1'], max_files_to_index = 10,
-                    window_sizes = [4,6,8,16,32,64,128], sept_unit = 1, max_bloom_false_prob = 0.005)
+    index.generate(max_pos = 20000, seq_ids = ['1'], max_files_to_index = 2,
+                    window_sizes = [32, 64, 128], sept_unit = 1, max_bloom_false_prob = 0.005)
     end = time.time()
     print('Indexing time:', end - start)
     index.summary()
@@ -86,9 +85,12 @@ elif args.test_consistency:
     print("Consistency", end - start)
 
 elif args.test_search:
+
+    search_str = args.test_search
+    print("Searching for:", search_str)
     index.summary()
     start = time.time()
-    result = index.search('CACTAA')
+    result = index.search(search_str)
     end = time.time()
     print('Result', result)
     print('Search time:', end - start)

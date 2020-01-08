@@ -67,14 +67,14 @@ class Index():
 
         files = {}
         l = len(test_strings)
-        # len_kmer_last = None
-        # flag_found = None
+        len_kmer_last = None
+        flag_found = None
         for kmer in test_strings:
 
-            # if(flag_found and len(kmer) < len_kmer_last):
-            #     break
+            if(flag_found and len(kmer) < len_kmer_last):
+                break
             
-            # len_kmer_last = len(kmer)
+            len_kmer_last = len(kmer)
 
             #verify if bloom filters are working as expected
             hash = self.bloom_filters.element.check(kmer)
@@ -103,15 +103,20 @@ class Index():
                         'locations': []
                     }
                 
+                print(files[f])
+                
                 score = len(posting_list[f]) * (len(kmer) / max( self.config.element['WINDOW_SIZES']) )
                 files[f]['score'] = files[f]['score'] + score
                 files[f]['locations'].extend(posting_list[f])
 
-                # #get strings from reference
-                # count = 0
-                # for pos in files[f]['locations']:
-                #     files[f]['locations'][count] = pos + (self.reference.element[pos[0]:pos[1]], score)
-                #     count = count + 1
+                #get strings from reference
+                count = 0
+                for pos in files[f]['locations']:
+                    files[f]['locations'][count].extend([self.reference.element[pos[0]:pos[1]]])
+                    count = count + 1
+
+            
+            break
 
         #prepare output and sort results
         l = []
@@ -208,7 +213,7 @@ class Index():
             self.reference.element = self.reference.element + record_str
 
             #index
-            self._index_sequence(record_str, file_id)
+            self._index_sequence(record_str[1:self.config.element['MAX_POS']], file_id)
 
             #only first chromossome
             break
@@ -278,6 +283,9 @@ class Index():
         print('-Indexing sequence...')
 
         record_str = str(record_str)
+
+        with open('_indexed_%s.txt' % file_id, 'w') as file:
+            file.write(record_str)
         
         start = time.time()
         l = len(record_str)
@@ -295,6 +303,7 @@ class Index():
 
                 kmer = record_str[i:i+w]       
                 hash = self.bloom_filters.add(kmer)
+                print(hash, kmer, file_id, i, i + w)
                 self.inverted_index.add(hash, kmer, file_id, i, i + w)        
 
             if(i % (self.config.element['MAX_POS']/50) == 0):

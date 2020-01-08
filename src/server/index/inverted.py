@@ -18,7 +18,7 @@ class InvertedIndex(BaseElement):
         if fileid not in self.element[diggest][kmer]:
             self.element[diggest][kmer][fileid] = []
 
-        self.element[diggest][kmer][fileid].append((pos_i, pos_f))
+        self.element[diggest][kmer][fileid].append([pos_i, pos_f])
 
         return (diggest, kmer, fileid)
 
