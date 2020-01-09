@@ -1,4 +1,4 @@
-files/**
+src/server/index/files/inverted/**
 env
 src/client/db.sqlite3
 __pycache__

@@ -29,6 +29,7 @@ class Index():
         self.files_repo_file = os.path.join(BASE_DIR, 'files/files.pickle')
         self.inverted_index_file = os.path.join(BASE_DIR, 'files/inverted.pickle')
         self.repository_path = os.path.join(BASE_DIR, 'files/repo')
+        self.inverted_repository_path = os.path.join(BASE_DIR, 'files/inverted')
 
         #init 
         self._init_elements()
@@ -74,6 +75,7 @@ class Index():
         flag_found = None
         for kmer in test_strings:
 
+            print('Search for:', kmer )
             #if longer k-meers are found let's avoid the smaller ones
             if(flag_found and len(kmer) < len_kmer_last):
                 break   
@@ -116,17 +118,13 @@ class Index():
                 print(self.repository.element)
                 ref_id = self.repository.element[f]['ref_id']
 
-
                 #get strings from reference and insert them on the result array for evaluation
                 if self.repository.element[f]['ref_id']:
                     count = 0
                     for pos in files[f]['locations']:
                         # str index starts at 0 but on vcf files at 1
-                        files[f]['locations'][count].extend([self.reference.element[ref_id]['sequence'][pos[0]+1:pos[1]+1], kmer]) 
+                        files[f]['locations'][count].extend([self.reference.element[ref_id]['sequence'][pos[0]:pos[1]], kmer]) 
                         count = count + 1
-
-            
-            break
 
         #prepare output and sort results
         l = []
@@ -204,6 +202,8 @@ class Index():
             # concatenate string
             #self.reference.element = self.reference.element + record_str
 
+            break
+
         # index
         # index string from the beginning to a max pos defined on the configuration
         if self.config.element['MAX_POS']:
@@ -276,6 +276,7 @@ class Index():
 
         #clear up repository
         self.repository.clear()
+        self.inverted_index.clear()
 
         #update configuration values
         self.config.update(max_pos, seq_ids, max_samples_to_index,
@@ -333,7 +334,7 @@ class Index():
         # repository (files references)
         self.repository = Repository(self.files_repo_file, 'repo', self.repository_path)
         # inverted index
-        self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted')
+        self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted', self.inverted_repository_path)
         #reference string
         self.reference = Reference(self.reference_file,'ref') # char
 
@@ -354,7 +355,6 @@ class Index():
 
 
     def _save(self):
-        start = time.time()
         print('- Saving index...')
         self.bloom_filters.save()
         self.repository.save()
@@ -370,11 +370,9 @@ class Index():
 
         with open('_indexed_%s.txt' % file_id, 'w') as file:
             file.write(record_str)
-        
-        start = time.time()
-        l = len(record_str)
 
         print("[%s]" % file_id)
+        l = len(record_str)
         for i in range(0, l, self.config.element['STEPS_UNIT']):            
             if(i >  self.config.element['MAX_POS']):
                     break
