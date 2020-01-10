@@ -5,6 +5,18 @@ networks:
     driver: bridge
 
 services:
+
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - .:/bitnami/redis/data
+    ports:
+      - "6380:6379"
+    networks:
+      - app-tier
+
   index:
     build: ./server/
     command: python index.py 8001

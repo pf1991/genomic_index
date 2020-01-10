@@ -5,6 +5,6 @@ src/client/db.sqlite3
 __pycache__
 *.vcf*
 *.pickle
-*.txt
+_*.txt
 src/server/index/files/repo
 src/server/index/files/inverted
