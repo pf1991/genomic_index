@@ -11,6 +11,7 @@ from .repository import Repository
 from .base_element import BaseElement
 from .config import Config
 from .reference import Reference
+import math 
 
 class Index():
 
@@ -59,6 +60,7 @@ class Index():
 
     def search(self, record_str):
         
+        start = time.time()
         # check consistency
         self._check_index_ready()
 
@@ -75,7 +77,6 @@ class Index():
         flag_found = None
         for kmer in test_strings:
 
-            print('Search for:', kmer )
             #if longer k-meers are found let's avoid the smaller ones
             if(flag_found and len(kmer) < len_kmer_last):
                 break   
@@ -108,29 +109,27 @@ class Index():
                         'locations': []
                     }
                 
-                #calculate score
-                score = len(posting_list[f]) * (len(kmer) / max( self.config.element['WINDOW_SIZES']) )
-                files[f]['score'] = files[f]['score'] + score
-                files[f]['locations'].extend(posting_list[f])
-
-                #get file reference
-                print(f)
-                print(self.repository.element)
-                ref_id = self.repository.element[f]['ref_id']
-
                 #get strings from reference and insert them on the result array for evaluation
                 if self.repository.element[f]['ref_id']:
+                    ref_id = self.repository.element[f]['ref_id']
                     count = 0
-                    for pos in files[f]['locations']:
+                    for pos in posting_list[f]:
                         # str index starts at 0 but on vcf files at 1
-                        files[f]['locations'][count].extend([self.reference.element[ref_id]['sequence'][pos[0]:pos[1]], kmer]) 
+                        posting_list[f][count].extend([self.reference.element[ref_id]['sequence'][pos[0]:pos[1]]]) 
                         count = count + 1
+
+                #calculate score
+                score = len(posting_list[f]) / ( max( self.config.element['WINDOW_SIZES']) + 1 - len(kmer) )
+                files[f]['score'] = files[f]['score'] + score
+                files[f]['locations'].extend(posting_list[f])
 
         #prepare output and sort results
         l = []
         [l.append({'file':k,'value':v}) for k,v in files.items()]
         l.sort(key=lambda x: x['value']['score'], reverse=True)
-
+        
+        print("Search time:", time.time() - start)
+        
         return l
 
 
@@ -182,7 +181,7 @@ class Index():
         # we start by saving the file, moving it to a new location
         self.repository.add(file_id, 'reference file', file_path, '.fa.gz', file_id)
 
-        tem_seq_ids = self.config.element['SEQ_IDS'].copy()
+        #tem_seq_ids = self.config.element['SEQ_IDS'].copy()
         for seq_record in SeqIO.parse(gzopen(file_path,'rt'), "fasta"):
             print('Looking at seq id:', seq_record.id)
             # references has 1 cromossome per record, so here we specify which chromossomes should be indexed
@@ -202,8 +201,6 @@ class Index():
             # concatenate string
             #self.reference.element = self.reference.element + record_str
 
-            break
-
         # index
         # index string from the beginning to a max pos defined on the configuration
         if self.config.element['MAX_POS']:
@@ -219,7 +216,7 @@ class Index():
         print('-Reference indexed!')
 
 
-    def index_file(self, reference_id, vfc_file_path):
+    def index_vcf(self, reference_id, vfc_file_path):
 
         print('- Indexing file!')
         self._check_index_ready()
@@ -268,8 +265,8 @@ class Index():
                     
         print('- File indexed!')
 
-    def set_up(self, max_pos, seq_ids, max_samples_to_index,
-                    window_sizes, sept_unit, max_bloom_false_prob):
+    def set_up(self, max_pos, max_samples_to_index,
+                    window_sizes, max_bloom_false_prob):
         
         #reset all elements
         self._init_elements()
@@ -279,8 +276,8 @@ class Index():
         self.inverted_index.clear()
 
         #update configuration values
-        self.config.update(max_pos, seq_ids, max_samples_to_index,
-                    window_sizes, sept_unit, max_bloom_false_prob)
+        self.config.update(max_pos, max_samples_to_index,
+                    window_sizes, max_bloom_false_prob)
 
         # # generate index
         # print('- Generating index...')
@@ -373,10 +370,9 @@ class Index():
 
         print("[%s]" % file_id)
         l = len(record_str)
-        for i in range(0, l, self.config.element['STEPS_UNIT']):            
-            if(i >  self.config.element['MAX_POS']):
-                    break
-            
+        print('Length', l)
+        for i in range(0, l):            
+
             for w in  self.config.element['WINDOW_SIZES']:
                 n_steps = (l - w)
                 if(i > n_steps):
@@ -384,13 +380,12 @@ class Index():
 
                 kmer = record_str[i:i+w]       
                 hash = self.bloom_filters.add(kmer)
-                print(hash, kmer, file_id, i + 1, i + w + 1)    #in str index starts at 0, but on vcf files at 1
                 self.inverted_index.add(hash, kmer, file_id, i + 1, i + w + 1)        
 
-            if(i % (self.config.element['MAX_POS']/50) == 0):
-                print("#", end='', flush=True)
+            # if(i % (l/10000) == 0):
+            print("Progress (%d/%d)" % (l, i))
 
-        print()
+        # print()
         # add vcf file to repository
         self.repository.add(file_id, 'VCF file', None, None, reference_id)
 
@@ -407,7 +402,7 @@ class Index():
         l = len(record_str)
         unique_kmers = {}
 
-        for i in range(0, l,  self.config.element['STEPS_UNIT']):
+        for i in range(0, l):
         
             if(i >  self.config.element['MAX_POS']):
                     break

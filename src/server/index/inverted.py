@@ -29,9 +29,10 @@ class InvertedIndex(BaseElement):
 
         # self.element[diggest][kmer][fileid].append([pos_i, pos_f])
 
-        if(sys.getsizeof(self.element) < 1000000000): #1gB
+        if(sys.getsizeof(self.element) < 90000000): #50MB
             self._to_ram(diggest, kmer, fileid, pos_i, pos_f)
         else:
+            print('-Deploying to disk!')
             self._deploy_to_disk()
 
         return (diggest, kmer, fileid)
@@ -40,7 +41,7 @@ class InvertedIndex(BaseElement):
     def clear(self):
 
         # delete all files
-        print('-Deleting repository files')
+        print('-Deleting inverted index files')
         folder = self.repository_path
         for filename in os.listdir(folder):
             file_path = os.path.join(folder, filename)
@@ -71,9 +72,21 @@ class InvertedIndex(BaseElement):
 
 
     def summary(self):
+        size = self._getRepositorySize()
         print("Inverted Index:")
-        print("\tIndexed %d hashes" % len(self.element.keys()))
-        print("\tObject Size %d Bytes" % (sys.getsizeof(self.element)))
+        print("\tRepository size %d Bytes, %d files" % size)
+
+
+    def _getRepositorySize(self):
+        folder = self.repository_path
+        total_size = os.path.getsize(folder)
+        count = 0
+        for item in os.listdir(folder):
+            itempath = os.path.join(folder, item)
+            if os.path.isfile(itempath):
+                total_size += os.path.getsize(itempath)
+            count = count + 1
+        return (total_size, count)
 
 
     def _to_ram(self, diggest, kmer, fileid, pos_i, pos_f):
@@ -91,8 +104,10 @@ class InvertedIndex(BaseElement):
 
     def _deploy_to_disk(self):
 
-        print('--Deploy to disk')
+        print('--Save Batch to disk')
         keys =  self.element.keys()
+        l = len(keys)
+        count = 0
         for diggest in keys:
 
             file_path = self.repository_path + '/' + str(diggest)
@@ -115,14 +130,19 @@ class InvertedIndex(BaseElement):
                     if f not in fragment[kmer]:
                         fragment[kmer][f] = []
 
-                    print(self.element[diggest][kmer][f])
                     fragment[kmer][f].extend(self.element[diggest][kmer][f])
                 
             #save    
-            print('Saving fragment', fragment)
             with open(file_path, 'wb') as output:  # Overwrites any existing file.
                 pickle.dump(fragment, output, pickle.HIGHEST_PROTOCOL)
-        
+            
+            count = count + 1
+
+            if(count % (l/100) == 0):
+                print("Progress (%d/%d)" % (count, l))
+
+        print('--Save Complete')
+
         #clear var
         self.element = {}
 

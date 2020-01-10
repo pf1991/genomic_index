@@ -8,7 +8,7 @@ def index(request):
 
     if request.POST:
         r = requests.get(settings.INDEX_URL + '?search=' + request.POST['term']).json()
-        print(r)
+        # print(r)
         data = {'result': r, 'term': request.POST['term']}
         return render(request, 'search.html', data) 
     else:

@@ -11,26 +11,24 @@ class Config(BaseElement):
     
         self.element = {
             'MAX_POS': 10000,
-            'SEQ_IDS': ['1'],
             'MAX_SAMPLES_TO_INDEX': 1,
             'WINDOW_SIZES': [4,6],
-            'STEPS_UNIT': 1,
             'MAX_BLOOM_FALSE_POS_PROB': 0.1,
-            'BUILD_OK': False
+            'BUILD_OK': False,
+            'RAM': True
         }
 
-    def update(self, max_pos = 10000, seq_ids = ['1'], MAX_SAMPLES_TO_INDEX = 50,
-                    window_sizes = [4,6,8,16,32,64,128], sept_unit = 1, max_bloom_false_prob = 0.005):
+    def update(self, max_pos = 10000, MAX_SAMPLES_TO_INDEX = 50,
+                    window_sizes = [4,6,8,16,32,64,128], max_bloom_false_prob = 0.005, ram = True):
 
         print('-update index config')
         self.element = {
             'MAX_POS': max_pos,
-            'SEQ_IDS': seq_ids,
             'MAX_SAMPLES_TO_INDEX': MAX_SAMPLES_TO_INDEX,
             'WINDOW_SIZES': window_sizes,
-            'STEPS_UNIT': sept_unit,
             'MAX_BLOOM_FALSE_POS_PROB': max_bloom_false_prob,
-            'BUILD_OK': False
+            'BUILD_OK': False,
+            'RAM': ram
         }
     
     def summary(self):

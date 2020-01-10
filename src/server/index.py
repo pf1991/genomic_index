@@ -11,7 +11,7 @@ import urllib.parse
 
 # index object
 index = Index()
-index.summary()
+# index.summary()
 
 class S(BaseHTTPRequestHandler):
 
@@ -38,7 +38,7 @@ class S(BaseHTTPRequestHandler):
         if 'search' in parameters:
             search = parameters['search']
 
-            print(search[0])
+            #print(search[0])
 
             res = index.search(search[0])
 

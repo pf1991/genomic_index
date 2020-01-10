@@ -1,8 +1,10 @@
+!files_for_testing/fungos/*
 src/server/index/files/inverted/**
 env
 src/client/db.sqlite3
 __pycache__
 *.vcf*
 *.pickle
-*.fa*
 *.txt
+src/server/index/files/repo
+src/server/index/files/inverted

@@ -14,6 +14,14 @@
 </head>
 
 <body>
+    <style>
+        .line_overflow {
+            white-space: nowrap;
+                        overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    
+    </style>
     <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
@@ -34,7 +42,7 @@
     
     <div class="ml-md-5 mt-5">
         {%if term %}
-        <h5 class="card-title">Searches for "{{ term }}"</h5>
+        <h5 class="card-title line_overflow">Searches for "{{ term }}"</h5>
         {% else %}
         <h5 class="card-title">Please search for some sequence (ex: ACTGCATGCTAG)"</h5>
         {% endif %}
@@ -49,9 +57,15 @@
                     <div class="">
                         <span class="badge badge-primary"><i class="fas fa-bullseye text-white mr-1 "
                                 aria-hidden="true"></i>{{ res.value.score }}</span>
-                        <h5 class="mb-1 mr-2">[{{ res.file}}]</h5>        
+                        <h5 class="mb-1 mr-2">[{{ res.file}}] {{res.value.locations|length}} Hits</h5>        
                     </div>
-                    <small class="text-muted">{{res.value.locations}}</small>
+                    {% for a in res.value.locations %}
+
+                        {% if forloop.counter < 10 %}
+                            <div class="line_overflow"> {{a}}</div>
+                        {% endif %}
+                        
+                    {% endfor %}
             </div>
             {% endfor %}
         {% endif %}
