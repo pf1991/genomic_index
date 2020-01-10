@@ -1,5 +1,7 @@
 # bloom_genomic_index
 
+![alt text](./doc/image.png)
+
 This project aims to study the indexing of genomic sequences by using bloom filters, in which is possible to index and search also VCF files (we need to associate the reference) and FASTA files! Details are given bellow.
 
 Supported files: fa.gz, vcf.gz 
@@ -33,16 +35,18 @@ python command_line.py --set_up
 * Human Genome (reference): ftp://ftp.1000genomes.ebi.ac.uk//vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
 
 * VCF for Chromossome 1 for more than 2K samples (corresponding tbi file is needed): 
-
+```
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
 
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz.tbi 
+```
 
 * Other possible downloads for testing:
+```
 ftp://ftp.ensemblgenomes.org/pub/release-45/plants/fasta/glycine_max/dna/Glycine_max.Glycine_max_v2.1.dna.toplevel.fa.gz
 
 ftp://ftp.ensemblgenomes.org/pub/release-45/bacteria//fasta/bacteria_176_collection/_bacillus_aminovorans/dna/_bacillus_aminovorans.ASM164324v1.dna_sm.toplevel.fa.gz
-
+```
 
 ## Index files
 
@@ -97,8 +101,10 @@ docker-compose up
 Understanding VCF file format:
 https://gatkforums.broadinstitute.org/gatk/discussion/1268/what-is-a-vcf-and-how-should-i-interpret-it
 
-Data repository:
+Human genome data repository:
+```
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/
+```
 
 A subset can be created with:
 ```sh
@@ -106,7 +112,8 @@ tabix -h ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr1.phas
 ```
 
 The url for the ref genome on vcf file can be found at its headers. In our case we used:
+```
 ftp://ftp.1000genomes.ebi.ac.uk//vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
-
+```
 
 
