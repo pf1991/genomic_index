@@ -12,7 +12,7 @@ Supported files: fa.gz, vcf.gz
 
 * Clone the project
 
-* Create a virtual entironment and install dependencies (python3 is necessary):
+* Create a virtual environment and install dependencies (python3 is necessary):
 
 ```
 cd server/
@@ -32,7 +32,10 @@ python command_line.py --set_up
 ## Dataset
 
 
-* Human Genome (reference): ftp://ftp.1000genomes.ebi.ac.uk//vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
+* Human Genome (reference): 
+```
+ftp://ftp.1000genomes.ebi.ac.uk//vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
+```
 
 * VCF for Chromossome 1 for more than 2K samples (corresponding tbi file is needed): 
 ```
