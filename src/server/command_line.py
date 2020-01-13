@@ -191,7 +191,7 @@ elif args.evaluate:
         r['indexing_time_max'] = max(index_times)
 
         #get inverted index total size
-        size, fragments = index.inverted_index._getRepositorySize()
+        size, fragments = index.inverted_index._getRepositoryInfo()
         r['fragments_total_size'] = size
         r['number_of_fragments'] = fragments
 

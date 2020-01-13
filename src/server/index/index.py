@@ -115,6 +115,7 @@ class Index():
                     count = 0
                     for pos in posting_list[f]:
                         # str index starts at 0 but on vcf files at 1
+                        print(posting_list[f][count], pos)
                         posting_list[f][count].extend([self.reference.element[ref_id]['sequence'][pos[0]:pos[1]]]) 
                         count = count + 1
 

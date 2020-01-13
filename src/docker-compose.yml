@@ -11,9 +11,9 @@ services:
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     volumes:
-      - .:/bitnami/redis/data
+      - /home/vagrant/var/Redis:/bitnami/redis/data
     ports:
-      - "6380:6379"
+      - "6379:6379"
     networks:
       - app-tier
 
@@ -24,8 +24,8 @@ services:
       - ./server:/code
     ports:
       - "8001:8001"
-    # depends_on:
-    #   - memcached
+    depends_on:
+      - redis
     networks:
       - app-tier
   web:
