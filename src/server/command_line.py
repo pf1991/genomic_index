@@ -22,9 +22,9 @@ parser.add_argument("-V", "--version", help="show program version", action="stor
 
 parser.add_argument(
     '--set_up',
-    nargs=2,
-    metavar=('max_pos', 'max_samples'),
-    help='Initialize index for max_pos (max length of a sequence) and max_samples (samples on VCF file)',
+    nargs=3,
+    metavar=('max_pos', 'max_samples', 'window_sizes'),
+    help='Initialize index for max_pos (max length of a sequence), max_samples (samples on VCF file), and k-mers sizes',
 )
 
 # index file
@@ -67,15 +67,18 @@ args = parser.parse_args()
 index = Index('localhost')
 
 if args.set_up:
+
+    window_arr = args.set_up[2].split(',')
+    window_arr = list(map(int, window_arr)) 
     index.set_up(max_pos = int(args.set_up[0]), max_samples_to_index = int(args.set_up[1]),
-                     window_sizes = [8, 16, 32, 64, 128], max_bloom_false_prob = 0.01)
+                     window_sizes = window_arr, max_bloom_false_prob = 0.01)
 
 if args.index_reference:
     start = time.time()
     print('ref id:', args.index_reference[0], 'ref path:', args.index_reference[1])
     index.index_reference(args.index_reference[0], args.index_reference[1])
     end = time.time()
-    print('Search time:', end - start)
+    print('Index elapsed time:', end - start)
 
 if args.index_vcf:
     print('ref id:', args.index_vcf[0], 'vcf path:', args.index_vcf[1])
@@ -139,26 +142,12 @@ elif args.evaluate:
 
     # (max_sequence_length, k-meers size to use)
     test_conditions = [
-        (1000, [8]),
-        (1000, [8, 16]),
-        (1000, [8, 16, 32]),
-        (1000, [8, 16, 32, 64]),
-        (1000, [8, 16, 32, 64, 128]),
-        (10000, [8]),
-        (10000, [8, 16]),
-        (10000, [8, 16, 32]),
-        (10000, [8, 16, 32, 64]),
-        (10000, [8, 16, 32, 64, 128]),
-        (50000, [8]),
-        (50000, [8, 16]),
-        (50000, [8, 16, 32]),
-        (50000, [8, 16, 32, 64]),
-        (50000, [8, 16, 32, 64, 128]),
-        (100000, [8]),
-        (100000, [8, 16]),
-        (100000, [8, 16, 32]),
-        (100000, [8, 16, 32, 64]),
-        (100000, [8, 16, 32, 64, 128]),
+        (1000000, [32]),
+        (1000000, [32, 64]),
+        (1000000, [32, 64, 128, 512, 1024, 2048]),
+        (0, [32]),
+        (0, [32, 64]),
+        (0, [32, 64, 128, 512, 1024, 2048]),
     ]
     #files for testing
     test_path = '../files_for_testing/fungos'

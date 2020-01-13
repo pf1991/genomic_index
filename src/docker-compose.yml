@@ -1,7 +1,7 @@
 version: '3'
 
 # networks:
-#   # app-tier:
+#   app-tier:
 #   #   driver: bridge
 
 services:
@@ -10,12 +10,18 @@ services:
     image: 'bitnami/redis:latest'
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
+    command: /run.sh --maxmemory 4000mb
     volumes:
       - /home/vagrant/var/Redis:/bitnami/redis/data
     ports:
       - "6379:6379"
     # networks:
     #   - app-tier
+    network_mode: "host"
+    deploy:
+      resources:
+        reservations:
+          cpus: '3'
 
   index:
     build: ./server/
@@ -28,6 +34,8 @@ services:
       - redis
     # networks:
     #   - app-tier
+    network_mode: "host"
+
   web:
     build: ./client/
     command: python manage.py runserver 0.0.0.0:8000
@@ -39,3 +47,4 @@ services:
       - index
     # networks:
     #   - app-tier
+    network_mode: "host"

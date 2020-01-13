@@ -32,9 +32,9 @@ pip3 install -r requirements.txt
 * Setup the index:
 
 ```
-python command_line.py --set_up <max_positions_to_read> <max_samples_on_vcf> 
+python command_line.py --set_up <max_positions_to_read> <max_samples_on_vcf> <kmers_windows_to_use>
 
-e.g: python3 command_line.py --set_up 100000 2
+e.g: python3 command_line.py --set_up 100000 2 16,32,128
 
 ```
 

@@ -374,7 +374,9 @@ class Index():
 
         print("[%s]" % file_id)
         l = len(record_str)
-        print('Length', l)
+
+        bloom_t = 0
+        redis_t = 0
         for i in range(0, l):            
 
             for w in  self.config.element['WINDOW_SIZES']:
@@ -382,12 +384,23 @@ class Index():
                 if(i > n_steps):
                     break
 
+                start = time.time()
+                
                 kmer = record_str[i:i+w]       
+                temp = time.time()     
                 hash = self.bloom_filters.add(kmer)
-                self.inverted_index.add(hash, kmer, file_id, i + 1, i + w + 1)        
+                bloom_t = bloom_t + time.time()-temp
 
-            # if(i % (l/10000) == 0):
-            print("Progress (%d/%d)" % (l, i))
+                temp = time.time()
+                self.inverted_index.add(hash, kmer, file_id, i + 1, i + w + 1)  
+                redis_t = redis_t + time.time() - temp   
+
+            if(i % 1000 == 0):
+                
+                print("Progress (%d/%d), total %.3f s, bloom_total_t %.3f s, redis_total_t %.3f s" % (l, i, time.time()-start, bloom_t, redis_t))
+                start = time.time()
+                redis_t = 0
+                bloom_t = 0
 
         # print()
         # add vcf file to repository
