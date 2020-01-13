@@ -377,6 +377,7 @@ class Index():
 
         bloom_t = 0
         redis_t = 0
+        start = time.time()
         for i in range(0, l):            
 
             for w in  self.config.element['WINDOW_SIZES']:
@@ -384,8 +385,6 @@ class Index():
                 if(i > n_steps):
                     break
 
-                start = time.time()
-                
                 kmer = record_str[i:i+w]       
                 temp = time.time()     
                 hash = self.bloom_filters.add(kmer)
