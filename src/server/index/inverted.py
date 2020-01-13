@@ -12,11 +12,13 @@ class InvertedIndex(BaseElement):
 
         super().__init__(filename_path, cache_name)
 
-        self.redis = redis.Redis(host='localhost', port=6379, db=0)
+        self.redis_host = 'redis'
+        self._load_redis()
         
 
     def add(self, hash_keys, kmer, fileid, pos_i, pos_f):
 
+        self._load_redis()
 
         key = self._convert_hash_key(hash_keys)
 
@@ -40,12 +42,14 @@ class InvertedIndex(BaseElement):
         return (hash_keys, kmer, fileid)
 
     def clear(self):
+        self._load_redis()
         self.element = {}
         keys = self.redis.keys()
         for k in keys:
             self.redis.delete(k) 
 
     def get_posting_list(self, hash_keys, kmer):
+        self._load_redis()
         try:
             key = self._convert_hash_key(hash_keys)
             d = self.redis.get(key)
@@ -55,11 +59,13 @@ class InvertedIndex(BaseElement):
             return None
 
     def _getRepositoryInfo(self):
+        self._load_redis()
         info = self.redis.info()
         return (info['used_memory'], info['db0']['keys'])
 
         
     def summary(self):
+        self._load_redis()
         print("Inverted Index:")
         print("Info redis:", self.redis.info())
 
@@ -70,5 +76,9 @@ class InvertedIndex(BaseElement):
         key = key.replace(')', '')
         key = key.replace(',', '')
         return key
+
+    def _load_redis(self):
+        self.redis = redis.Redis(host=self.redis_host, port=6379, db=0)
+
 
 

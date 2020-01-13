@@ -37,9 +37,6 @@ class S(BaseHTTPRequestHandler):
         parameters = urllib.parse.parse_qs(s[2:])
         if 'search' in parameters:
             search = parameters['search']
-
-            #print(search[0])
-
             res = index.search(search[0])
 
             self._set_response_ok(res)
