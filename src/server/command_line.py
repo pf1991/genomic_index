@@ -64,8 +64,7 @@ args = parser.parse_args()
 
 #Commands
 
-index = Index()
-index.inverted_index.redis_host = 'localhost'
+index = Index('localhost')
 
 if args.set_up:
     index.set_up(max_pos = int(args.set_up[0]), max_samples_to_index = int(args.set_up[1]),

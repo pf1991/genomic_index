@@ -8,11 +8,11 @@ import json
 
 class InvertedIndex(BaseElement):
 
-    def __init__(self, filename_path, cache_name, repository_path):
+    def __init__(self, filename_path, cache_name, repository_path, redis_host):
 
         super().__init__(filename_path, cache_name)
 
-        self.redis_host = 'redis'
+        self.redis_host = redis_host
         self._load_redis()
         
 

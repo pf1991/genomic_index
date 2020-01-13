@@ -15,7 +15,7 @@ import math
 
 class Index():
 
-    def __init__(self):
+    def __init__(self, redis_host='redis'):
 
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,6 +32,8 @@ class Index():
         self.repository_path = os.path.join(BASE_DIR, 'files/repo')
         self.inverted_repository_path = os.path.join(BASE_DIR, 'files/inverted')
 
+        self.redis_host = redis_host
+        
         #init 
         self._init_elements()
 
@@ -332,7 +334,8 @@ class Index():
         # repository (files references)
         self.repository = Repository(self.files_repo_file, 'repo', self.repository_path)
         # inverted index
-        self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted', self.inverted_repository_path)
+        self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted', self.inverted_repository_path, self.redis_host)
+
         #reference string
         self.reference = Reference(self.reference_file,'ref') # char
 
