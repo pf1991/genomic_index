@@ -10,7 +10,6 @@ services:
     image: 'bitnami/redis:latest'
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
-    command: /run.sh --maxmemory 4000mb
     volumes:
       - /home/vagrant/var/Redis:/bitnami/redis/data
     ports:

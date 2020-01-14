@@ -5,7 +5,6 @@ import time
 import vcf
 from pyfaidx import FastaVariant
 from gzip import open as gzopen
-from .bloom import Bloom
 from .inverted import InvertedIndex
 from .repository import Repository
 from .base_element import BaseElement
@@ -26,7 +25,6 @@ class Index():
         self.config_file = os.path.join(BASE_DIR, 'files/config.pickle')
         self.unique_kmers_file = os.path.join(BASE_DIR, 'files/unique_kmers.pickle')
         self.reference_file = os.path.join(BASE_DIR, 'files/reference.pickle')
-        self.bloom_filters_file = os.path.join(BASE_DIR, 'files/bloom_filter.pickle')
         self.files_repo_file = os.path.join(BASE_DIR, 'files/files.pickle')
         self.inverted_index_file = os.path.join(BASE_DIR, 'files/inverted.pickle')
         self.repository_path = os.path.join(BASE_DIR, 'files/repo')
@@ -40,11 +38,13 @@ class Index():
         #load elements from disk
         self._load()
 
+        self._search_redis_t = 0
+        self._search_redis_n = 0
+
 
     #===============================================
-    # Private functions
+    # public functions
     #===============================================
-
 
     def summary(self):
 
@@ -55,13 +55,10 @@ class Index():
         self.config.summary()
         self.inverted_index.summary()
         self.repository.summary()
-        self.bloom_filters.summary()
         self.reference.summary()
 
-
-
     def search(self, record_str):
-        
+
         start = time.time()
         # check consistency
         self._check_index_ready()
@@ -84,19 +81,15 @@ class Index():
                 break   
             len_kmer_last = len(kmer)
 
-            #verify if bloom filters are working as expected
-            hash = self.bloom_filters.element.check(kmer)
-            if(not hash):
-                print('Not found:', kmer)
-                continue
+            # get posting list
+            posting_list = None
+            posting_list = self.inverted_index.get_posting_list(kmer)
 
-            #get posting list
-            posting_list = self.inverted_index.get_posting_list(hash, kmer)
             if(not posting_list):
-                print('Not found posting:', kmer)
+                # print('Not found posting:', kmer)
                 continue
 
-            #kmer found!
+            # kmer found!
             flag_found = True
 
             files_in_posting = {}
@@ -117,7 +110,10 @@ class Index():
                     count = 0
                     for pos in posting_list[f]:
                         # str index starts at 0 but on vcf files at 1
-                        posting_list[f][count].extend([self.reference.element[ref_id]['sequence'][pos[0]:pos[1]]]) 
+                        pos_f = pos + len(kmer)
+                        print(posting_list[f][count])
+                        posting_list[f][count] = [posting_list[f][count]]
+                        posting_list[f][count].extend([pos_f, self.reference.element[ref_id]['sequence'][pos:pos_f]]) 
                         count = count + 1
 
                 #calculate score
@@ -143,14 +139,9 @@ class Index():
         test_strings = self._generate_unique_kmers(self.reference.element)
         for kmer in test_strings:
 
-            #verify if bloom filters are working as expected
-            hash = self.bloom_filters.element.check(kmer)
-            if(not hash):
-                print("Bloom filters failed", kmer, hash)
-                continue
 
             #get posting list
-            posting_list = self.inverted_index.get_posting_list(hash, kmer)
+            posting_list = self.inverted_index.get_posting_list(kmer)
             if(not posting_list):
                 print("Posting list failed", kmer, hash)
                 continue
@@ -268,7 +259,7 @@ class Index():
         print('- File indexed!')
 
     def set_up(self, max_pos, max_samples_to_index,
-                    window_sizes, max_bloom_false_prob):
+                    window_sizes):
         
         #reset all elements
         self._init_elements()
@@ -279,32 +270,7 @@ class Index():
 
         #update configuration values
         self.config.update(max_pos, max_samples_to_index,
-                    window_sizes, max_bloom_false_prob)
-
-        # # generate index
-        # print('- Generating index...')
-
-        # file_id = 'ref'
-        # path = ''
-
-        # #load file list
-        # self.reference.element = ""
-        # key = self.repository.add(file_id, 'reference', path)
-        # for seq_record in SeqIO.parse(gzopen(self.reference_file_path,'rt'), "fasta"):
-
-        #     if(seq_record.id not in  self.config.element['SEQ_IDS']):
-        #         print('Not in SEQ_IDS. Skiping...')
-        #         continue
-
-        #     record_str = str(seq_record.seq)
-
-        #     self.reference.element = self.reference.element + record_str
-
-        #     #index
-        #     self._index(record_str[1:self.config.element['MAX_POS']], file_id)
-
-        #     #only first chromossome
-        #     break
+                    window_sizes)
 
         #save structures to ram and disk
         self._save()
@@ -323,15 +289,12 @@ class Index():
 
         self.config = Config(self.config_file,'config') # char
 
-        # bloom filters
         # the number is actualy lower, genomes between genomes can differ in 2% between the
         max_inserts = int( len(self.config.element['WINDOW_SIZES']) * self.config.element['MAX_POS'] * 1.02 ) 
 
-        self.bloom_filters = Bloom(self.bloom_filters_file, 'bloom', max_inserts, self.config.element['MAX_BLOOM_FALSE_POS_PROB'])
-        self.bloom_filters.init()
-
         # repository (files references)
         self.repository = Repository(self.files_repo_file, 'repo', self.repository_path)
+        
         # inverted index
         self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted', self.inverted_repository_path, self.redis_host)
 
@@ -342,21 +305,22 @@ class Index():
     def _load(self):
 
         print('- Loading index components from disk/ram...')
+
         print('[Config]')
         self.config.get()
+
         print('[Inverted Index]')
         self.inverted_index.get()
+
         print('[Loading Repository]')
         self.repository.get()
-        print('[Loading Bloom Filter]')
-        self.bloom_filters.get()
+
         print('[Loading Reference]')
         self.reference.get()
 
 
     def _save(self):
         print('- Saving index...')
-        self.bloom_filters.save()
         self.repository.save()
         self.inverted_index.save()
         self.reference.save()
@@ -368,13 +332,16 @@ class Index():
         print('- Indexing sequence...')
         record_str = str(record_str)
 
+        batch = {}
+        BATCH_LIMIT = 20000
+        batch_count = 0
+
         with open('_indexed_%s.txt' % file_id, 'w') as file:
             file.write(record_str)
 
         print("[%s]" % file_id)
         l = len(record_str)
 
-        bloom_t = 0
         redis_t = 0
         start = time.time()
         for i in range(0, l):            
@@ -384,26 +351,39 @@ class Index():
                 if(i > n_steps):
                     break
 
-                kmer = record_str[i:i+w]       
-                temp = time.time()     
-                hash = self.bloom_filters.add(kmer)
-                bloom_t = bloom_t + time.time()-temp
-
-                temp = time.time()
-                self.inverted_index.add(hash, kmer, file_id, i + 1, i + w + 1)  
-                redis_t = redis_t + time.time() - temp   
-
-            if(i % 1000 == 0):
+                kmer = record_str[i:i+w] 
                 
-                print("Progress (%d/%d), total %.3f s, bloom_total_t %.3f s, redis_total_t %.3f s" % (l, i, time.time()-start, bloom_t, redis_t))
-                start = time.time()
-                redis_t = 0
-                bloom_t = 0
+                # prepare batch
+                inverted_index_fragment = self.inverted_index.add_to_fragment(kmer, file_id, i + 1, i + w + 1)
+                batch[kmer] = inverted_index_fragment
+                batch_count = batch_count + 1
 
-        # print()
+            # deploy batch 
+            if(batch_count > BATCH_LIMIT):
+                temp = time.time()
+                self._submit_index_batch(batch)
+                redis_t = time.time() - temp
+                batch = {}
+                batch_count = 0
+                print("Progress (%d/%d), total %.3f s, time to process a batch %.3f s" % (l, i, time.time()-start, redis_t))
+
+
+            # if(i % 1000 == 0):
+            #     print("Progress (%d/%d), total %.3f s, redis_total_t %.3f s" % (l, i, time.time()-start, redis_t))
+            #     start = time.time()
+            #     redis_t = 0
+        
+        #submit the remainning items
+        if(batch_count > 0):
+            self._submit_index_batch(batch)
+
         # add vcf file to repository
         self.repository.add(file_id, 'VCF file', None, None, reference_id)
 
+    def _submit_index_batch(self, batch):
+        result = self.inverted_index.add_batch(batch)
+        if(not result):
+            raise Exception('Batch not processed! Index failed to build!')
 
     def _get_from_ref(self, id, start, stop):
         self._check_index_ready()

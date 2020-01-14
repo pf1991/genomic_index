@@ -10,7 +10,7 @@ import json
 import urllib.parse
 
 # index object
-index = Index()
+index = Index('localhost')
 # index.summary()
 
 class S(BaseHTTPRequestHandler):

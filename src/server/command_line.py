@@ -24,7 +24,7 @@ parser.add_argument(
     '--set_up',
     nargs=3,
     metavar=('max_pos', 'max_samples', 'window_sizes'),
-    help='Initialize index for max_pos (max length of a sequence), max_samples (samples on VCF file), and k-mers sizes',
+    help='Initialize index for max_pos (max length of a sequence), max_samples (samples on VCF file), k-mers sizes',
 )
 
 # index file
@@ -71,7 +71,7 @@ if args.set_up:
     window_arr = args.set_up[2].split(',')
     window_arr = list(map(int, window_arr)) 
     index.set_up(max_pos = int(args.set_up[0]), max_samples_to_index = int(args.set_up[1]),
-                     window_sizes = window_arr, max_bloom_false_prob = 0.01)
+                     window_sizes = window_arr)
 
 if args.index_reference:
     start = time.time()
@@ -131,18 +131,12 @@ elif args.evaluate:
         '123213213435345dfgdfjgjfgijitdhghgfhfghi3465gdfshdgh',
     ]
 
-    # (max_sequence_length, k-meers size to use)
+    # (max_sequence_length, k-meers size to use, use bloom filters)
     test_conditions = [
+        (10000, [32]),
         (100000, [32]),
-        (100000, [32, 64]),
-        (100000, [32, 64, 128, 512, 1024, 2048]),
-        (1000000, [32]),
-        (1000000, [32, 64]),
-        (1000000, [32, 64, 128, 512, 1024, 2048]),
-        (0, [32]),
-        (0, [32, 64]),
-        (0, [32, 64, 128, 512, 1024, 2048]),
     ]
+
     #files for testing
     test_path = '../files_for_testing/fungos'
     files = [ (f.split('.')[0], join(test_path, f)) for f in listdir(test_path) if isfile(join(test_path, f))]
@@ -153,16 +147,16 @@ elif args.evaluate:
         # setup
         # max_samples_to_index is only relevant for vcf files (is not relevant for this case)
         index.set_up(max_pos = t[0], max_samples_to_index = 20,
-                        window_sizes = t[1], max_bloom_false_prob = 0.01)
+                        window_sizes = t[1])
 
         index_times = []
         total_t = 0
         r['max_length'] = t[0]
         r['k-meers_sizes'] = t[1]
+
         for f in files:      
             # index
             start = time.time()
-            print(f)
             index.index_reference(f[0],f[1])    # ref_id, file path
             end = time.time()
             delta_t = end-start

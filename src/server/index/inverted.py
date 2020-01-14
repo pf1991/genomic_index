@@ -16,45 +16,39 @@ class InvertedIndex(BaseElement):
         self._load_redis()
         
 
-    def add(self, hash_keys, kmer, fileid, pos_i, pos_f):
-
-        # self._load_redis()
-
-        key = self._convert_hash_key(hash_keys)
+    def add_to_fragment(self, kmer, fileid, pos_i, pos_f):
 
         fragment = {}
-        d = self.redis.get(key)
+        d = self.redis.get(kmer)
         if d:
             fragment = json.loads(d)  
 
         #init structure if doesnt exists
-        if kmer not in fragment:  
-            fragment[kmer] = {}
-        if fileid not in fragment[kmer]:
-                fragment[kmer][fileid] = []
+        if fileid not in fragment:
+                fragment[fileid] = []
 
-        fragment[kmer][fileid].append([pos_i, pos_f])
-            
-        #save    
-        d = json.dumps(fragment)  
-        self.redis.set(key, d)
+        fragment[fileid].append(pos_i)
+ 
+        return json.dumps(fragment)  
 
-        return (hash_keys, kmer, fileid)
+    def add_batch(self, batch):
+        return self.redis.mset(batch)
 
     def clear(self):
         # self._load_redis()
         self.element = {}
-        keys = self.redis.keys()
-        for k in keys:
-            self.redis.delete(k) 
+        self.redis.flushdb()
+        self.redis.flushall()
+        self.redis.config_resetstat()
+        self.redis.bgrewriteaof()
+        self.redis.slowlog_reset()
 
-    def get_posting_list(self, hash_keys, kmer):
+    def get_posting_list(self, kmer):
         # self._load_redis()
         try:
-            key = self._convert_hash_key(hash_keys)
-            d = self.redis.get(key)
+            d = self.redis.get(kmer)
             fragment = json.loads(d) 
-            return fragment[kmer]
+            return fragment
         except:
             return None
 

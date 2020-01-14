@@ -133,5 +133,5 @@ STATIC_URL = '/static/'
 
 BASE_INDEX_FILES = os.path.join(BASE_DIR, 'files/')
 REF_FASTA_FILE = os.path.join(BASE_INDEX_FILES, 'hs37d5.fa')
-INDEX_URL = 'http://index:8001'
+INDEX_URL = 'http://localhost:8001'
 
