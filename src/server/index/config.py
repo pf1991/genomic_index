@@ -14,10 +14,11 @@ class Config(BaseElement):
             'MAX_SAMPLES_TO_INDEX': 1,
             'WINDOW_SIZES': [4,6],
             'BUILD_OK': False,
+            'BATCH_SIZE': 20000
         }
 
     def update(self, max_pos = 10000, MAX_SAMPLES_TO_INDEX = 50,
-                    window_sizes = [4,6,8,16,32,64,128], max_bloom_false_prob = 0.005, use_bloom_filters = True):
+                    window_sizes = [4,6,8,16,32,64,128], batch_size = 20000):
 
         print('-update index config')
         self.element = {
@@ -25,6 +26,7 @@ class Config(BaseElement):
             'MAX_SAMPLES_TO_INDEX': MAX_SAMPLES_TO_INDEX,
             'WINDOW_SIZES': window_sizes,
             'BUILD_OK': False,
+            'BATCH_SIZE': batch_size
         }
     
     def summary(self):

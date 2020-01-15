@@ -22,9 +22,9 @@ parser.add_argument("-V", "--version", help="show program version", action="stor
 
 parser.add_argument(
     '--set_up',
-    nargs=3,
-    metavar=('max_pos', 'max_samples', 'window_sizes'),
-    help='Initialize index for max_pos (max length of a sequence), max_samples (samples on VCF file), k-mers sizes',
+    nargs=4,
+    metavar=('max_pos', 'max_samples', 'window_sizes', 'batch_size'),
+    help='Initialize index for max_pos (max length of a sequence), max_samples (samples on VCF file), k-mers sizes, batch_size',
 )
 
 # index file
@@ -64,14 +64,14 @@ args = parser.parse_args()
 
 #Commands
 
-index = Index('localhost')
+index = Index()
 
 if args.set_up:
 
     window_arr = args.set_up[2].split(',')
     window_arr = list(map(int, window_arr)) 
     index.set_up(max_pos = int(args.set_up[0]), max_samples_to_index = int(args.set_up[1]),
-                     window_sizes = window_arr)
+                     window_sizes = window_arr, batch_size = int(args.set_up[3]))
 
 if args.index_reference:
     start = time.time()
@@ -133,16 +133,24 @@ elif args.evaluate:
 
     # (max_sequence_length, k-meers size to use, use bloom filters)
     test_conditions = [
-        (10000, [32]),
-        (10000, [32, 64]),
-        (10000, [32, 64, 128]),
-        (100000, [32]),
-        (100000, [32, 64]),
-        (100000, [32, 64, 128]),
-        (1000000, [32]),
-        (1000000, [32, 64]),
-        (1000000, [32, 64, 128]),
-        (0, [32]),
+        (10000, [32], 10000),
+        (10000, [32, 64], 10000),
+        # (10000, [32, 64, 128], 10000),
+        # (10000, [32, 64, 128], 20000),
+        # (10000, [32, 64, 128], 30000),
+        # (10000, [32, 64, 128], 40000),
+        # (100000, [32], 10000),
+        # (100000, [32, 64], 10000),
+        # (100000, [32, 64, 128], 10000),
+        # (100000, [32, 64, 128], 20000),
+        # (100000, [32, 64, 128], 30000),
+        # (100000, [32, 64, 128], 40000),
+        # (1000000, [32], 10000),
+        # (1000000, [32, 64], 10000),
+        # (1000000, [32, 64, 128], 10000),
+        # (1000000, [32, 64, 128], 20000),
+        # (1000000, [32, 64, 128], 30000),
+        # (1000000, [32, 64, 128], 40000),
     ]
 
     #files for testing
@@ -155,12 +163,13 @@ elif args.evaluate:
         # setup
         # max_samples_to_index is only relevant for vcf files (is not relevant for this case)
         index.set_up(max_pos = t[0], max_samples_to_index = 20,
-                        window_sizes = t[1])
+                        window_sizes = t[1], batch_size = t[2])
 
         index_times = []
         total_t = 0
         r['max_length'] = t[0]
-        r['k-meers_sizes'] = t[1]
+        r['k-meers_sizes'] = ','.join([str(x) for x in t[1]])
+        r['batch_size'] = t[2]
 
         for f in files:      
             # index
@@ -171,6 +180,7 @@ elif args.evaluate:
             index_times.append(delta_t)
 
         # r['index_files'] = index_times
+        r['indexing_time_total'] = sum(index_times)
         r['indexing_time_avg'] = sum(index_times) / len(files)
         r['indexing_time_min'] = min(index_times)
         r['indexing_time_max'] = max(index_times)

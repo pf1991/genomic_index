@@ -9,12 +9,11 @@ from .inverted import InvertedIndex
 from .repository import Repository
 from .base_element import BaseElement
 from .config import Config
-from .reference import Reference
 import math 
 
 class Index():
 
-    def __init__(self, redis_host='redis'):
+    def __init__(self):
 
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -24,13 +23,10 @@ class Index():
         # files
         self.config_file = os.path.join(BASE_DIR, 'files/config.pickle')
         self.unique_kmers_file = os.path.join(BASE_DIR, 'files/unique_kmers.pickle')
-        self.reference_file = os.path.join(BASE_DIR, 'files/reference.pickle')
         self.files_repo_file = os.path.join(BASE_DIR, 'files/files.pickle')
         self.inverted_index_file = os.path.join(BASE_DIR, 'files/inverted.pickle')
         self.repository_path = os.path.join(BASE_DIR, 'files/repo')
         self.inverted_repository_path = os.path.join(BASE_DIR, 'files/inverted')
-
-        self.redis_host = redis_host
         
         #init 
         self._init_elements()
@@ -55,7 +51,6 @@ class Index():
         self.config.summary()
         self.inverted_index.summary()
         self.repository.summary()
-        self.reference.summary()
 
     def search(self, record_str):
 
@@ -84,7 +79,6 @@ class Index():
             # get posting list
             posting_list = None
             posting_list = self.inverted_index.get_posting_list(kmer)
-
             if(not posting_list):
                 # print('Not found posting:', kmer)
                 continue
@@ -112,7 +106,7 @@ class Index():
                         # str index starts at 0 but on vcf files at 1
                         pos_f = pos + len(kmer)
                         posting_list[f][count] = [posting_list[f][count]]
-                        posting_list[f][count].extend([pos_f, self.reference.element[ref_id]['sequence'][pos:pos_f]]) 
+                        posting_list[f][count].extend([pos_f, self._get_from_ref(ref_id, pos, pos_f)]) 
                         count = count + 1
 
                 #calculate score
@@ -128,34 +122,6 @@ class Index():
         print("Search time:", time.time() - start)
         
         return l
-
-
-    def test_consistency(self):
-        
-        self._check_index_ready()
-
-        #get unique k-mers from ref
-        test_strings = self._generate_unique_kmers(self.reference.element)
-        for kmer in test_strings:
-
-
-            #get posting list
-            posting_list = self.inverted_index.get_posting_list(kmer)
-            if(not posting_list):
-                print("Posting list failed", kmer, hash)
-                continue
-
-            # has file?
-            if('ref' not in posting_list):
-                print("File not found failed", kmer, hash)
-                continue
-
-            # # check values in posting list
-            # for pos in posting_list['ref']:
-            #     ref_str = self._get_from_ref(pos[0], pos[1])
-            #     if(ref_str != kmer):
-            #         print("Ref is not consistent", kmer, ref_str, pos[0], pos[1])
-            #         continue
 
 
     def index_reference(self, file_id, file_path):
@@ -190,18 +156,12 @@ class Index():
             # convert record to a string
             record_str = record_str + str(seq_record.seq)
 
-            # concatenate string
-            #self.reference.element = self.reference.element + record_str
-
         # index
         # index string from the beginning to a max pos defined on the configuration
         if self.config.element['MAX_POS']:
             self._index(record_str[1:self.config.element['MAX_POS']], file_id)
         else:
             self._index(record_str, file_id)
-
-        # add reference to the reference object
-        self.reference.add(file_id, record_str)
 
         self._save()
 
@@ -258,7 +218,7 @@ class Index():
         print('- File indexed!')
 
     def set_up(self, max_pos, max_samples_to_index,
-                    window_sizes):
+                    window_sizes, batch_size):
         
         #reset all elements
         self._init_elements()
@@ -269,7 +229,7 @@ class Index():
 
         #update configuration values
         self.config.update(max_pos, max_samples_to_index,
-                    window_sizes)
+                    window_sizes, batch_size)
 
         #save structures to ram and disk
         self._save()
@@ -288,17 +248,11 @@ class Index():
 
         self.config = Config(self.config_file,'config') # char
 
-        # the number is actualy lower, genomes between genomes can differ in 2% between the
-        max_inserts = int( len(self.config.element['WINDOW_SIZES']) * self.config.element['MAX_POS'] * 1.02 ) 
-
         # repository (files references)
         self.repository = Repository(self.files_repo_file, 'repo', self.repository_path)
         
         # inverted index
-        self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted', self.inverted_repository_path, self.redis_host)
-
-        #reference string
-        self.reference = Reference(self.reference_file,'ref') # char
+        self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted', self.inverted_repository_path)
 
 
     def _load(self):
@@ -314,15 +268,12 @@ class Index():
         print('[Loading Repository]')
         self.repository.get()
 
-        print('[Loading Reference]')
-        self.reference.get()
-
 
     def _save(self):
         print('- Saving index...')
         self.repository.save()
         self.inverted_index.save()
-        self.reference.save()
+        # self.reference.save()
         self.config.element['BUILD_OK'] = True
         self.config.save()
 
@@ -331,47 +282,55 @@ class Index():
         print('- Indexing sequence...')
         record_str = str(record_str)
 
-        batch = {}
-        BATCH_LIMIT = 20000
+        batch = []
         batch_count = 0
 
         with open('_indexed_%s.txt' % file_id, 'w') as file:
             file.write(record_str)
-
+        
         print("[%s]" % file_id)
         l = len(record_str)
+        record_str = None
 
         redis_t = 0
         start = time.time()
+        fragment_time = 0
+
+        f = open('_indexed_%s.txt' % file_id, 'rb')
+
         for i in range(0, l):            
 
             for w in  self.config.element['WINDOW_SIZES']:
+                
                 n_steps = (l - w)
                 if(i > n_steps):
                     break
 
-                kmer = record_str[i:i+w] 
+                f.seek(i)
+                kmer = f.read(w).decode(encoding='utf-8')
                 
-                # prepare batch
-                inverted_index_fragment = self.inverted_index.add_to_fragment(kmer, file_id, i + 1, i + w + 1)
-                batch[kmer] = inverted_index_fragment
+                # skip bad zones
+                if 'N' in kmer:
+                    continue
+                
+                #populate batch
+                batch.append((kmer, file_id, i))
                 batch_count = batch_count + 1
 
             # deploy batch 
-            if(batch_count > BATCH_LIMIT):
+            if(batch_count > self.config.element['BATCH_SIZE']):            
                 temp = time.time()
                 self._submit_index_batch(batch)
                 redis_t = time.time() - temp
-                batch = {}
+                batch = []
                 batch_count = 0
-                print("Progress (%d/%d), total %.3f s, time to process a batch %.3f s" % (l, i, time.time()-start, redis_t))
+                print("Progress (%d/%d), total %.3f s, time to process a batch %.3f s" % (l, i, time.time()-start, redis_t), self.inverted_index.get_time())
+                fragment_time = 0
+                self.inverted_index.reset_time()
 
+        #close file
+        f.close()
 
-            # if(i % 1000 == 0):
-            #     print("Progress (%d/%d), total %.3f s, redis_total_t %.3f s" % (l, i, time.time()-start, redis_t))
-            #     start = time.time()
-            #     redis_t = 0
-        
         #submit the remainning items
         if(batch_count > 0):
             self._submit_index_batch(batch)
@@ -380,13 +339,18 @@ class Index():
         self.repository.add(file_id, 'VCF file', None, None, reference_id)
 
     def _submit_index_batch(self, batch):
-        result = self.inverted_index.add_batch(batch)
+        result = self.inverted_index.process_batch(batch)
         if(not result):
             raise Exception('Batch not processed! Index failed to build!')
 
     def _get_from_ref(self, id, start, stop):
         self._check_index_ready()
-        return self.reference.element[id]['sequence'][start:stop]
+        f = open('_indexed_%s.txt' % id, 'rb')
+        f.seek(start)
+        kmer = f.read(stop - start).decode(encoding='utf-8')
+        f.close()
+
+        return kmer
 
 
     def _generate_unique_kmers(self, record_str):
@@ -411,6 +375,8 @@ class Index():
                 # unique_kmers[kmer] = 1
                 if kmer not in unique_kmers:
                     unique_kmers[kmer] = 1
+                else:
+                    unique_kmers[kmer] = unique_kmers[kmer] + 1
 
         l = list(unique_kmers.keys())
 
