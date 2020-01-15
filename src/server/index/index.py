@@ -65,7 +65,7 @@ class Index():
 
         #get unique k-mers from ref
         test_strings = self._generate_unique_kmers(record_str)
-        print("Query K-mers:", test_strings)
+        # print("Query K-mers:", test_strings)
 
         #result buffer
         files = {}
@@ -111,7 +111,6 @@ class Index():
                     for pos in posting_list[f]:
                         # str index starts at 0 but on vcf files at 1
                         pos_f = pos + len(kmer)
-                        print(posting_list[f][count])
                         posting_list[f][count] = [posting_list[f][count]]
                         posting_list[f][count].extend([pos_f, self.reference.element[ref_id]['sequence'][pos:pos_f]]) 
                         count = count + 1

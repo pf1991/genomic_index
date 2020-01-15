@@ -1,22 +1,19 @@
 version: '3'
 
-# networks:
-#   app-tier:
-#   #   driver: bridge
-
 services:
 
   redis:
     image: 'bitnami/redis:latest'
+    sysctls:
+      - net.core.somaxconn=65535
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     volumes:
       - /home/vagrant/var/Redis:/bitnami/redis/data
     ports:
       - "6379:6379"
-    # networks:
-    #   - app-tier
     network_mode: "host"
+    command: bash -c "/run.sh --maxmemory 8000mb"
     deploy:
       resources:
         reservations:
@@ -31,8 +28,7 @@ services:
       - "8001:8001"
     depends_on:
       - redis
-    # networks:
-    #   - app-tier
+
     network_mode: "host"
 
   web:
@@ -44,6 +40,4 @@ services:
       - "8000:8000"
     depends_on:
       - index
-    # networks:
-    #   - app-tier
     network_mode: "host"

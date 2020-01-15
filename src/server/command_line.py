@@ -134,7 +134,15 @@ elif args.evaluate:
     # (max_sequence_length, k-meers size to use, use bloom filters)
     test_conditions = [
         (10000, [32]),
+        (10000, [32, 64]),
+        (10000, [32, 64, 128]),
         (100000, [32]),
+        (100000, [32, 64]),
+        (100000, [32, 64, 128]),
+        (1000000, [32]),
+        (1000000, [32, 64]),
+        (1000000, [32, 64, 128]),
+        (0, [32]),
     ]
 
     #files for testing
@@ -189,6 +197,11 @@ elif args.evaluate:
         r['search_len_min'] = min(search_length)
         r['search_len_avg'] = sum(search_length)/len(search_length)
 
+        redis_info = index.inverted_index.redis.info()
+        r['used_memory'] = redis_info['used_memory']
+        r['used_memory_rss'] = redis_info['used_memory_rss']
+        r['used_memory_peak'] = redis_info['used_memory_peak']
+        r['used_memory_dataset'] = redis_info['used_memory_dataset']
         results.append(r)
 
     print('--results (copy and paste on Excel)--')
