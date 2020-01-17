@@ -13,7 +13,7 @@ services:
     ports:
       - "6379:6379"
     network_mode: "host"
-    command: bash -c "/run.sh --maxmemory 8000mb"
+    command: bash -c "/run.sh --maxmemory 10000gb"
     deploy:
       resources:
         reservations:

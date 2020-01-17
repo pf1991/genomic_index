@@ -69,50 +69,41 @@ class Index():
         l = len(test_strings)
         len_kmer_last = None
         flag_found = None
-        for kmer in test_strings:
 
-            #if longer k-meers are found let's avoid the smaller ones
-            if(flag_found and len(kmer) < len_kmer_last):
-                break   
-            len_kmer_last = len(kmer)
+        results = self.inverted_index.get_posting_list(test_strings)
+        if not results:
+            return []
 
-            # get posting list
-            posting_list = None
-            posting_list = self.inverted_index.get_posting_list(kmer)
-            if(not posting_list):
-                # print('Not found posting:', kmer)
-                continue
-
-            # kmer found!
-            flag_found = True
-
+        for kmer in results.keys():
+            
             files_in_posting = {}
-            file_keys = list(posting_list.keys())
-            for k in file_keys:
-                files_in_posting[k] = {}
+            file_keys = list(results[kmer].keys())
+            # for file_id in file_keys:
+            #     files_in_posting[file_id] = {}
 
-            for f in files_in_posting.keys():
-                if f not in files:
-                    files[f] = {
+            for file_id in file_keys:
+                if file_id not in files:
+                    files[file_id] = {
                         'score': 0,
                         'locations': []
                     }
                 
                 #get strings from reference and insert them on the result array for evaluation
-                if self.repository.element[f]['ref_id']:
-                    ref_id = self.repository.element[f]['ref_id']
+                if self.repository.element[file_id]['ref_id']:
+                    ref_id = self.repository.element[file_id]['ref_id']
                     count = 0
-                    for pos in posting_list[f]:
-                        # str index starts at 0 but on vcf files at 1
+                    for pos in results[kmer][file_id]:
                         pos_f = pos + len(kmer)
-                        posting_list[f][count] = [posting_list[f][count]]
-                        posting_list[f][count].extend([pos_f, self._get_from_ref(ref_id, pos, pos_f)]) 
+                        #convert to array
+                        results[kmer][file_id][count] = [results[kmer][file_id][count]]
+                        #extend structure to add re
+                        results[kmer][file_id][count].extend([pos_f, self._get_from_ref(ref_id, pos, pos_f)]) 
                         count = count + 1
 
                 #calculate score
-                score = len(posting_list[f]) / ( max( self.config.element['WINDOW_SIZES']) + 1 - len(kmer) )
-                files[f]['score'] = files[f]['score'] + score
-                files[f]['locations'].extend(posting_list[f])
+                score = len(results[kmer][file_id]) / ( max( self.config.element['WINDOW_SIZES']) + 1 - len(kmer) )
+                files[file_id]['score'] = files[file_id]['score'] + score
+                files[file_id]['locations'].extend(results[kmer][file_id])
 
         #prepare output and sort results
         l = []
@@ -218,14 +209,19 @@ class Index():
         print('- File indexed!')
 
     def set_up(self, max_pos, max_samples_to_index,
-                    window_sizes, batch_size):
+                    window_sizes, batch_size, n_bases_to_hash = None):
         
+        if n_bases_to_hash is not None and min(window_sizes) <= n_bases_to_hash:
+            raise Exception('n_bases_to_hash should be smaller than the smallest k-mer window!')
+
         #reset all elements
         self._init_elements()
 
         #clear up repository
         self.repository.clear()
         self.inverted_index.clear()
+
+        self.inverted_index.element['N_BASES_TO_HASH'] = n_bases_to_hash
 
         #update configuration values
         self.config.update(max_pos, max_samples_to_index,
@@ -245,12 +241,9 @@ class Index():
 
 
     def _init_elements(self):
-
         self.config = Config(self.config_file,'config') # char
-
         # repository (files references)
-        self.repository = Repository(self.files_repo_file, 'repo', self.repository_path)
-        
+        self.repository = Repository(self.files_repo_file, 'repo', self.repository_path)     
         # inverted index
         self.inverted_index = InvertedIndex(self.inverted_index_file, 'inverted', self.inverted_repository_path)
 
@@ -319,7 +312,9 @@ class Index():
 
             # deploy batch 
             if(batch_count > self.config.element['BATCH_SIZE']):            
+                
                 temp = time.time()
+                
                 self._submit_index_batch(batch)
                 redis_t = time.time() - temp
                 batch = []
@@ -339,6 +334,8 @@ class Index():
         self.repository.add(file_id, 'VCF file', None, None, reference_id)
 
     def _submit_index_batch(self, batch):
+        #order keys, biggers first
+        batch.sort(key=lambda x: len(x[0]), reverse=True)
         result = self.inverted_index.process_batch(batch)
         if(not result):
             raise Exception('Batch not processed! Index failed to build!')
