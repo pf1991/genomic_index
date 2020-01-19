@@ -57,6 +57,7 @@ class Index():
         start = time.time()
         # check consistency
         self._check_index_ready()
+        max_kmer_size = max( self.config.element['WINDOW_SIZES'])
 
         #get unique k-mers from ref
         test_strings = self._generate_unique_kmers(record_str)
@@ -68,23 +69,31 @@ class Index():
         #test each k-meer (substring of the dna sequence)
         l = len(test_strings)
         len_kmer_last = None
-        flag_found = None
 
+        print(test_strings)
         results = self.inverted_index.get_posting_list(test_strings)
         if not results:
             return []
 
         for kmer in results.keys():
             
+            #if longer k-meers are found let's avoid the smaller ones
+            if(len_kmer_last is not None and len(kmer) < len_kmer_last):
+                break
+            len_kmer_last = len(kmer)
+
             files_in_posting = {}
+
             file_keys = list(results[kmer].keys())
-            # for file_id in file_keys:
-            #     files_in_posting[file_id] = {}
 
             for file_id in file_keys:
                 if file_id not in files:
                     files[file_id] = {
                         'score': 0,
+                        'max_kmers': 0,
+                        'search_length': len(record_str),
+                        'max_kmer_length': max_kmer_size,
+                        'exact_match': False,
                         'locations': []
                     }
                 
@@ -100,9 +109,18 @@ class Index():
                         results[kmer][file_id][count].extend([pos_f, self._get_from_ref(ref_id, pos, pos_f)]) 
                         count = count + 1
 
-                #calculate score
-                score = len(results[kmer][file_id]) / ( max( self.config.element['WINDOW_SIZES']) + 1 - len(kmer) )
+                # calculate score
+                # 
+                number_of_hits = len(results[kmer][file_id])
+                n_kmers_to_exact_match =  len(record_str) - max_kmer_size  + 1
+                weight = len(kmer) / max_kmer_size
+                score = number_of_hits * weight / n_kmers_to_exact_match
+                # score = weight / n_kmers_to_exact_match
                 files[file_id]['score'] = files[file_id]['score'] + score
+                if max_kmer_size == len(kmer):
+                    files[file_id]['max_kmers'] = files[file_id]['max_kmers'] + 1
+                if files[file_id]['max_kmers'] == ( len(record_str) - max_kmer_size  + 1) :
+                    files[file_id]['exact_match'] = True
                 files[file_id]['locations'].extend(results[kmer][file_id])
 
         #prepare output and sort results
@@ -358,9 +376,6 @@ class Index():
         unique_kmers = {}
 
         for i in range(0, l):
-        
-            if(i >  self.config.element['MAX_POS']):
-                    break
             
             for w in  self.config.element['WINDOW_SIZES']:
                 

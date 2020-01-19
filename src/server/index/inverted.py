@@ -147,7 +147,6 @@ class InvertedIndex(BaseElement):
         self.redis.flushdb()
         self.redis.flushall()
         self.redis.config_resetstat()
-        self.redis.bgrewriteaof()
         self.redis.slowlog_reset()
 
     def get_posting_list(self, kmer_list):

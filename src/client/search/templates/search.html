@@ -42,7 +42,7 @@
     
     <div class="ml-md-5 mt-5">
         {%if term %}
-        <h5 class="card-title line_overflow">Searches for "{{ term }}"</h5>
+        <h5 class="card-title line_overflow">Search Sting: "{{ term }}"</h5>
         {% else %}
         <h5 class="card-title">Please search for some sequence (ex: ACTGCATGCTAG)"</h5>
         {% endif %}
@@ -56,8 +56,8 @@
             <div class="list-group-item">
                     <div class="">
                         <span class="badge badge-primary"><i class="fas fa-bullseye text-white mr-1 "
-                                aria-hidden="true"></i>{{ res.value.score }}</span>
-                        <h5 class="mb-1 mr-2">[{{ res.file}}] {{res.value.locations|length}} Hits</h5>        
+                                aria-hidden="true"></i>{{ res.value.score }} {% if res.value.exact_match %} EXACT MATCH {% endif %}</span>
+                        <h5 class="mb-1 mr-2">[{{ res.file}}] {{res.value.locations|length}} Hits</h5>    
                     </div>
                     {% for a in res.value.locations %}
 
