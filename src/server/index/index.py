@@ -57,7 +57,6 @@ class Index():
         start = time.time()
         # check consistency
         self._check_index_ready()
-        max_kmer_size = max( self.config.element['WINDOW_SIZES'])
 
         #get unique k-mers from ref
         test_strings = self._generate_unique_kmers(record_str)
@@ -66,26 +65,44 @@ class Index():
         #result buffer
         files = {}
 
-        #test each k-meer (substring of the dna sequence)
+        # check which window size should be used to calculate the score 
         l = len(test_strings)
+        window_sizes = self.config.element['WINDOW_SIZES'].copy()
+        window_sizes.sort(reverse=True)
+        max_kmer_size = None
+        for w in window_sizes:
+            if w <= len(record_str):
+                max_kmer_size = w
+                break
+        if max_kmer_size is None:
+            return []
+
+        #test each k-meer (substring of the dna sequence)
         len_kmer_last = None
 
         results = self.inverted_index.get_posting_list(test_strings)
         if not results:
             return []
 
+        file_found = {}
         for kmer in results.keys():
             
             #if longer k-meers are found let's avoid the smaller ones
-            if(len_kmer_last is not None and len(kmer) < len_kmer_last):
-                break
-            len_kmer_last = len(kmer)
+            # if(len_kmer_last is not None and len(kmer) < len_kmer_last):
+            #     break
+            # len_kmer_last = len(kmer)
 
             files_in_posting = {}
 
             file_keys = list(results[kmer].keys())
 
             for file_id in file_keys:
+                
+                # discard lower kmers from the score
+                if file_id in file_found and len(kmer) != file_found[file_id]:
+                    continue
+                file_found[file_id] = len(kmer)
+
                 if file_id not in files:
                     files[file_id] = {
                         'score': 0,
@@ -112,7 +129,7 @@ class Index():
                 # 
                 number_of_hits = len(results[kmer][file_id])
                 n_kmers_to_exact_match =  len(record_str) - max_kmer_size  + 1
-                weight = len(kmer) / max_kmer_size
+                weight = 1 / 10**(max_kmer_size - len(kmer))
                 score = number_of_hits * weight / n_kmers_to_exact_match
                 # score = weight / n_kmers_to_exact_match
                 files[file_id]['score'] = files[file_id]['score'] + score
