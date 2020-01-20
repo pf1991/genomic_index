@@ -70,7 +70,6 @@ class Index():
         l = len(test_strings)
         len_kmer_last = None
 
-        print(test_strings)
         results = self.inverted_index.get_posting_list(test_strings)
         if not results:
             return []
@@ -168,13 +167,14 @@ class Index():
         # index
         # index string from the beginning to a max pos defined on the configuration
         if self.config.element['MAX_POS']:
-            self._index(record_str[1:self.config.element['MAX_POS']], file_id)
-        else:
-            self._index(record_str, file_id)
+            record_str = record_str[1:self.config.element['MAX_POS']]
+        
+        self._index(record_str, file_id)
 
         self._save()
 
         print('-Reference indexed!')
+        return len(record_str)
 
 
     def index_vcf(self, reference_id, vfc_file_path):
