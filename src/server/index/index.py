@@ -128,7 +128,7 @@ class Index():
                 # calculate score
                 # 
                 number_of_hits = len(results[kmer][file_id])
-                n_kmers_to_exact_match =  len(record_str) - max_kmer_size  + 1
+                n_kmers_to_exact_match =  len(record_str) - len(kmer)  + 1
                 weight = 1 / 10**(max_kmer_size - len(kmer))
                 score = number_of_hits * weight / n_kmers_to_exact_match
                 # score = weight / n_kmers_to_exact_match
