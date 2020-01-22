@@ -2,7 +2,7 @@
 
 ![alt text](./doc/image.png)
 
-This project aims to study the indexing of genomic sequences by using redis, in which is possible to index and search also VCF files (we need to associate the reference) and FASTA files! Details are given bellow.
+This project aims to study the indexing of genomic sequences by using redis, in which is possible to index genomic files and search for its sequences!
 
 Supported files: fa.gz, vcf.gz 
 
