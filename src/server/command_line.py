@@ -109,18 +109,18 @@ elif args.evaluate:
 
     # (max_sequence_length, k-meers size to use, use bloom filters)
     test_conditions = [
-        (100000, [16], 10000, None),
-        (100000, [16], 10000, 4),
-        (1000000, [16], 10000, None),
-        (1000000, [16], 10000, 4),
-        (5000000, [16], 10000, None),
-        (5000000, [16], 10000, 4),
-        (10000000, [16], 10000, None),
-        (10000000, [16], 10000, 4),
-        (15000000, [16], 10000, None),
-        (15000000, [16], 10000, 4),
-        (0, [16], 10000, None),
-        (0, [16], 10000, 4),
+        (100000, [16], 25000, None),
+        (100000, [16], 25000, 4),
+        (1000000, [16], 25000, None),
+        (1000000, [16], 25000, 4),
+        (5000000, [16], 25000, None),
+        (5000000, [16], 25000, 4),
+        (10000000, [8], 10000, None),
+        (10000000, [8], 10000, 4),
+        (15000000, [8], 10000, None),
+        (15000000, [8], 10000, 4),
+        (0, [8], 10000, None),
+        (0, [8], 10000, 4),
     ]
 
     #files for testing
@@ -144,15 +144,17 @@ elif args.evaluate:
         r['redis_hash'] = t[3]
 
         sequences_length = 0
+        count_file = 0
         for f in files:      
             # index
             start = time.time()
-            file_length = index.index_reference(f[0],f[1])    # ref_id, file path
+            file_length = index.index_reference(str(count_file),f[1], f[0])    # ref_id, file path
             print(file_length)
             end = time.time()
             delta_t = end-start
             index_times.append(delta_t)
             sequences_length = sequences_length + file_length
+            count_file = count_file + 1
 
         r['total_sequence_length'] = sequences_length
 
@@ -168,7 +170,7 @@ elif args.evaluate:
         r['number_of_fragments'] = fragments
 
 
-        f = open('_indexed_%s.txt' % f[0], 'rb')
+        f = open('_indexed_0.txt', 'rb')
 
         # search
         search_times = []
@@ -209,6 +211,8 @@ elif args.evaluate:
         r['used_memory_peak'] = redis_info['used_memory_peak']
         r['used_memory_dataset'] = redis_info['used_memory_dataset']
         results.append(r)
+
+        #cada chave com uma key de 16chars e valor de 30 parece ocupar 104 bytes
 
     print('--results (copy and paste on Excel)--')
     keys = results[0].keys()

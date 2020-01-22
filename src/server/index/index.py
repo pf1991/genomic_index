@@ -60,6 +60,7 @@ class Index():
 
         #get unique k-mers from ref
         test_strings = self._generate_unique_kmers(record_str)
+
         # print("Query K-mers:", test_strings)
 
         #result buffer
@@ -106,6 +107,7 @@ class Index():
                 if file_id not in files:
                     files[file_id] = {
                         'score': 0,
+                        'description': self.repository.element[file_id]['description'],
                         'max_kmers': 0,
                         'search_length': len(record_str),
                         'max_kmer_length': max_kmer_size,
@@ -149,7 +151,7 @@ class Index():
         return l
 
 
-    def index_reference(self, file_id, file_path):
+    def index_reference(self, file_id, file_path, description = None):
 
         print('- Indexing reference:', file_id, file_path)
 
@@ -162,7 +164,7 @@ class Index():
         record_str = ""
 
         # we start by saving the file, moving it to a new location
-        self.repository.add(file_id, 'reference file', file_path, '.fa.gz', file_id)
+        self.repository.add(file_id, description, file_path, '.fa.gz', file_id)
 
         #tem_seq_ids = self.config.element['SEQ_IDS'].copy()
         for seq_record in SeqIO.parse(gzopen(file_path,'rt'), "fasta"):

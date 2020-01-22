@@ -57,7 +57,7 @@
                     <div class="">
                         <span class="badge badge-primary"><i class="fas fa-bullseye text-white mr-1 "
                                 aria-hidden="true"></i>{{ res.value.score }} {% if res.value.exact_match %} EXACT MATCH {% endif %}</span>
-                        <h5 class="mb-1 mr-2">[{{ res.file}}] {{res.value.locations|length}} Hits</h5>    
+                        <h5 class="mb-1 mr-2">[{{ res.value.description}}] {{res.value.locations|length}} Hits</h5>    
                     </div>
                     {% for a in res.value.locations %}
 
