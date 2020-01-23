@@ -116,16 +116,16 @@ class Index():
                     }
                 
                 #get strings from reference and insert them on the result array for evaluation
-                if self.repository.element[file_id]['ref_id']:
-                    ref_id = self.repository.element[file_id]['ref_id']
-                    count = 0
-                    for pos in results[kmer][file_id]:
-                        pos_f = pos + len(kmer)
-                        #convert to array
-                        results[kmer][file_id][count] = [results[kmer][file_id][count]]
-                        #extend structure to add re
-                        results[kmer][file_id][count].extend([pos_f, self._get_from_ref(ref_id, pos, pos_f)]) 
-                        count = count + 1
+                # if self.repository.element[file_id]['ref_id']:
+                #     ref_id = self.repository.element[file_id]['ref_id']
+                #     count = 0
+                #     for pos in results[kmer][file_id]:
+                #         pos_f = pos + len(kmer)
+                #         #convert to array
+                #         results[kmer][file_id][count] = [results[kmer][file_id][count]]
+                #         #extend structure to add re
+                #         results[kmer][file_id][count].extend([pos_f, self._get_from_ref(ref_id, pos, pos_f)]) 
+                #         count = count + 1
 
                 # calculate score
                 # 

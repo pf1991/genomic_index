@@ -39,9 +39,16 @@ class InvertedIndex(BaseElement):
                 fragment[fileid] = []
 
         if isinstance(pos_i, list):
-            fragment[fileid].extend(pos_i)
+            for p in pos_i:
+                el = p
+                if len(fragment[fileid]) > 0:
+                    el = p - fragment[fileid][0]
+                fragment[fileid].append(el)
         else:
-            fragment[fileid].append(pos_i)
+            el = pos_i
+            if len(fragment[fileid]) > 0:
+                el = pos_i - fragment[fileid][0]
+            fragment[fileid].append(el)
 
         self.time[2] = self.time[2] + time.time() - temp
 

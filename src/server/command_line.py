@@ -107,7 +107,7 @@ elif args.evaluate:
 
     results = []
 
-    # (max_sequence_length, k-meers size to use, use bloom filters)
+    # (max_sequence_length, k-meers size to use, batch size)
     test_conditions = [
         (100000, [16], 25000, None),
         (100000, [16], 25000, 4),
@@ -115,12 +115,12 @@ elif args.evaluate:
         (1000000, [16], 25000, 4),
         (5000000, [16], 25000, None),
         (5000000, [16], 25000, 4),
-        (10000000, [8], 10000, None),
-        (10000000, [8], 10000, 4),
-        (15000000, [8], 10000, None),
-        (15000000, [8], 10000, 4),
-        (0, [8], 10000, None),
-        (0, [8], 10000, 4),
+        (10000000, [16], 10000, None),
+        (10000000, [16], 10000, 4),
+        (15000000, [16], 10000, None),
+        (15000000, [16], 10000, 4),
+        (0, [16], 10000, None),
+        (0, [16], 10000, 4),
     ]
 
     #files for testing
@@ -149,7 +149,6 @@ elif args.evaluate:
             # index
             start = time.time()
             file_length = index.index_reference(str(count_file),f[1], f[0])    # ref_id, file path
-            print(file_length)
             end = time.time()
             delta_t = end-start
             index_times.append(delta_t)
@@ -174,6 +173,7 @@ elif args.evaluate:
 
         # search
         search_times = []
+        search_hits = []
         string_test = [100, 1000, 10000, 20000, 40000, 50000]
         for size in string_test:
             #read subsequence of the sequence
@@ -182,6 +182,10 @@ elif args.evaluate:
             result = index.search(s)
             end = time.time()
             search_times.append(end-start)
+            hits = 0
+            for res in result:
+                hits = hits + len(res['value']['locations'])
+            search_hits.append(hits)
         f.close()
 
         r['search_time_100_known'] = search_times[0]
@@ -190,6 +194,7 @@ elif args.evaluate:
         r['search_time_40000_known'] = search_times[3]
         r['search_time_50000_known'] = search_times[4]
 
+        search_hits_unknown = []
         search_times = []
         for size in string_test:
             #random string
@@ -198,6 +203,10 @@ elif args.evaluate:
             result = index.search(s)
             end = time.time()
             search_times.append(end-start)
+            hits = 0
+            for res in result:
+                hits = hits + len(res['value']['locations'])
+            search_hits_unknown.append(hits)
         
         r['search_time_100_unknown'] = search_times[0]
         r['search_time_1000_unknown'] = search_times[1]
@@ -210,6 +219,19 @@ elif args.evaluate:
         r['used_memory_rss'] = redis_info['used_memory_rss']
         r['used_memory_peak'] = redis_info['used_memory_peak']
         r['used_memory_dataset'] = redis_info['used_memory_dataset']
+
+        r['search_time_100_known_hits'] = search_hits[0]
+        r['search_time_1000_known_hits'] = search_hits[1]
+        r['search_time_10000_known_hits'] = search_hits[2]
+        r['search_time_40000_known_hits'] = search_hits[3]
+        r['search_time_50000_known_hits'] = search_hits[4]
+
+        r['search_time_100_unknown_hits'] = search_hits_unknown[0]
+        r['search_time_1000_unknown_hits'] = search_hits_unknown[1]
+        r['search_time_10000_unknown_hits'] = search_hits_unknown[2]
+        r['search_time_40000_unknown_hits'] = search_hits_unknown[3]
+        r['search_time_50000_unknown_hits'] = search_hits_unknown[4]
+
         results.append(r)
 
         #cada chave com uma key de 16chars e valor de 30 parece ocupar 104 bytes
