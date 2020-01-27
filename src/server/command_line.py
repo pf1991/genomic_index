@@ -109,18 +109,18 @@ elif args.evaluate:
 
     # (max_sequence_length, k-meers size to use, batch size)
     test_conditions = [
-        (100000, [16], 25000, None),
-        (100000, [16], 25000, 4),
-        (1000000, [16], 25000, None),
-        (1000000, [16], 25000, 4),
-        (5000000, [16], 25000, None),
-        (5000000, [16], 25000, 4),
-        (10000000, [16], 10000, None),
-        (10000000, [16], 10000, 4),
-        (15000000, [16], 10000, None),
-        (15000000, [16], 10000, 4),
-        (0, [16], 10000, None),
-        (0, [16], 10000, 4),
+        (100000, [16], 1000, None),
+        (100000, [16], 1000, 4),
+        (1000000, [16], 1000, None),
+        (1000000, [16], 1000, 4),
+        (5000000, [16], 1000, None),
+        (5000000, [16], 1000, 4),
+        (10000000, [16], 1000, None),
+        (10000000, [16], 1000, 4),
+        (15000000, [16], 1000, None),
+        (15000000, [16], 1000, 4),
+        (0, [16], 1000, None),
+        (0, [16], 1000, 4),
     ]
 
     #files for testing
@@ -169,50 +169,43 @@ elif args.evaluate:
         r['number_of_fragments'] = fragments
 
 
-        f = open('_indexed_0.txt', 'rb')
-
         # search
-        search_times = []
-        search_hits = []
-        string_test = [100, 1000, 10000, 20000, 40000, 50000]
-        for size in string_test:
-            #read subsequence of the sequence
-            s = f.read(size).decode(encoding='utf-8')
-            start = time.time()
-            result = index.search(s)
-            end = time.time()
-            search_times.append(end-start)
-            hits = 0
-            for res in result:
-                hits = hits + len(res['value']['locations'])
-            search_hits.append(hits)
-        f.close()
+        string_test = [25, 50, 75, 100, 125]
+        search_times = [0]*len(string_test)
+        search_hits = [0]*len(string_test)
+        n_tests = 20
+        for i in range(0,n_tests):
+            count_search = 0
+            search_times_temp = []
+            search_hits_temp = []
+            for size in string_test:
+                #read subsequence of the sequence
+                f = open('_indexed_0.txt', 'rb')
+                s = f.read(size).decode(encoding='utf-8')
+                f.close()
+                start = time.time()
+                result = index.search(s)
+                end = time.time()
+                search_times_temp.append((end-start))
+                hits = 0
+                for res in result:
+                    hits = hits + len(res['value']['locations'])
+                search_hits_temp.append(hits)
 
-        r['search_time_100_known'] = search_times[0]
-        r['search_time_1000_known'] = search_times[1]
-        r['search_time_10000_known'] = search_times[2]
-        r['search_time_40000_known'] = search_times[3]
-        r['search_time_50000_known'] = search_times[4]
+            #sum all 
+            for j in range(0,len(string_test)):
+                search_times[j] = search_times[j] + search_times_temp[j]
+                search_hits[j] = search_hits[j] + search_hits_temp[j]
 
-        search_hits_unknown = []
-        search_times = []
-        for size in string_test:
-            #random string
-            s = random_string(size)
-            start = time.time()
-            result = index.search(s)
-            end = time.time()
-            search_times.append(end-start)
-            hits = 0
-            for res in result:
-                hits = hits + len(res['value']['locations'])
-            search_hits_unknown.append(hits)
+        count_temp = 0
+        for j in string_test:
+            r['search_time_%d' % j ] = search_times[count_temp] / n_tests
+            count_temp = count_temp + 1
         
-        r['search_time_100_unknown'] = search_times[0]
-        r['search_time_1000_unknown'] = search_times[1]
-        r['search_time_10000_unknown'] = search_times[2]
-        r['search_time_40000_unknown'] = search_times[3]
-        r['search_time_50000_unknown'] = search_times[4]
+        count_temp = 0
+        for j in string_test:
+            r['search_time_%d_hits' % j] = search_hits[count_temp]/ n_tests
+            count_temp = count_temp + 1
 
         redis_info = index.inverted_index.redis.info()
         r['used_memory'] = redis_info['used_memory']
@@ -220,17 +213,6 @@ elif args.evaluate:
         r['used_memory_peak'] = redis_info['used_memory_peak']
         r['used_memory_dataset'] = redis_info['used_memory_dataset']
 
-        r['search_time_100_known_hits'] = search_hits[0]
-        r['search_time_1000_known_hits'] = search_hits[1]
-        r['search_time_10000_known_hits'] = search_hits[2]
-        r['search_time_40000_known_hits'] = search_hits[3]
-        r['search_time_50000_known_hits'] = search_hits[4]
-
-        r['search_time_100_unknown_hits'] = search_hits_unknown[0]
-        r['search_time_1000_unknown_hits'] = search_hits_unknown[1]
-        r['search_time_10000_unknown_hits'] = search_hits_unknown[2]
-        r['search_time_40000_unknown_hits'] = search_hits_unknown[3]
-        r['search_time_50000_unknown_hits'] = search_hits_unknown[4]
 
         results.append(r)
 
